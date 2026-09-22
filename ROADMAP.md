@@ -18,8 +18,8 @@ AxGraves softdepend, runtime GravePreSpawnEvent guard, no-grave-on-KO protection
 ## ✅ v0.3.1 — Stability & Safety
 Persistent `knockouts.yml`, relog/restart/reload recovery, configurable offline bleedout, duplicate KO guard, teleport BLOCK/FOLLOW policy, world-change reassertion, safe cleanup pada revive/death/quit.
 
-## v0.4.0 — Execution System
-Optional execution channel untuk menghabisi player KNOCKED.
+## ✅ v0.4.0 — Execution System
+Passive execution channel tanpa klik: executor maksimal 1 block, sneak + execution item, progress ActionBar, cancellation guards, revive/execution mutual exclusion, permission, dan managed real-death flow yang tetap kompatibel dengan AxGraves.
 
 ## v0.5.0 — Carry System
 Carry/drop sebagai engine terpisah dari pose.
