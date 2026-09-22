@@ -3,7 +3,7 @@ version: '${project.version}'
 main: dev.cadera.cdrknockout.CdrKnockoutPlugin
 api-version: '1.21'
 author: CADERA
-description: Modular knockout, revive, persistence, stability, and AxGraves compatibility engine for Paper servers.
+description: Modular knockout, revive, execution, persistence, stability, and AxGraves compatibility engine for Paper servers.
 website: https://github.com/MenkiPlugcore/CdrKnockout
 softdepend: [Vault, AuraSkills, AxGraves]
 
@@ -40,6 +40,9 @@ permissions:
   cdrknockout.revive.special:
     description: Example permission requirement for revive.
     default: false
+  cdrknockout.execute:
+    description: Allows a player to execute KNOCKED players when execution is enabled.
+    default: true
   cdrknockout.giveup:
     description: Allows a knocked player to use /giveup.
     default: true

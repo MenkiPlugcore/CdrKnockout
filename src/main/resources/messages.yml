@@ -46,3 +46,11 @@ revive-requirement-auraskills-unavailable: '%prefix%&cRequirement AuraSkills akt
 revive-requirement-permission: '%prefix%&cKamu membutuhkan permission &f%permission% &cuntuk revive.'
 revive-requirement-any-failed: '%prefix%&cTidak ada requirement revive mode ANY yang terpenuhi.'
 revive-requirement-payment-failed: '%prefix%&cCost revive gagal diproses. Revive dibatalkan tanpa menghidupkan target.'
+
+execution-start-executor: '%prefix%&4Mulai execute &f%target%&4. Tetap jongkok, dekat, dan pertahankan senjata.'
+execution-start-target: '%prefix%&c%executor% &4sedang mencoba mengeksekusimu.'
+execution-cancelled-executor: '%prefix%&cExecution terputus.'
+execution-cancelled-target: '%prefix%&eProses execution terhadapmu terputus.'
+execution-success-executor: '%prefix%&4%target% berhasil dieksekusi.'
+execution-success-target: '%prefix%&4Kamu dieksekusi oleh &f%executor%&4.'
+execution-failed-internal: '%prefix%&cExecution gagal karena target sudah tidak valid.'

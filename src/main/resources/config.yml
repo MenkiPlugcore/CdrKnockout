@@ -1,6 +1,6 @@
-# CdrKnockout v0.3.1
+# CdrKnockout v0.4.0
 # Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death
-# + AxGraves Compatibility + Stability & Safety
+# + AxGraves Compatibility + Stability & Safety + Execution System
 
 debug: false
 
@@ -201,6 +201,56 @@ revive:
       success-reviver: '&a&lREVIVE SUCCESS'
       success-target: '&a&lREVIVED'
       cancelled: '&c&lREVIVE INTERRUPTED'
+
+# v0.4.0 Execution System
+# Default: dekat maksimal 1 block + jongkok + pegang sword selama 3 detik.
+# Tidak membutuhkan klik kiri/kanan.
+execution:
+  enabled: true
+  max-distance: 1.0
+  duration-seconds: 3.0
+  require-sneak: true
+
+  # Kosongkan jika semua player boleh execute tanpa permission khusus.
+  permission: cdrknockout.execute
+
+  item:
+    required: true
+    allowed-materials:
+      - WOODEN_SWORD
+      - STONE_SWORD
+      - IRON_SWORD
+      - GOLDEN_SWORD
+      - DIAMOND_SWORD
+      - NETHERITE_SWORD
+
+  channel:
+    # Damage pada executor membatalkan execution.
+    cancel-on-damage: true
+
+    # Damage pada target KNOCKED tidak membatalkan execution secara default.
+    # Downed-damage engine tetap dapat mengurangi bleedout/menyebabkan real death.
+    cancel-on-target-damage: false
+
+    # Jika executor menyerang entity saat channel berlangsung, execution batal.
+    cancel-on-attack: true
+
+    # Jika true, executor harus tetap di titik awal channel.
+    cancel-on-move: false
+    move-tolerance: 0.10
+
+    # Ganti sword/material di tengah channel = batal.
+    cancel-on-item-change: true
+
+  display:
+    actionbar:
+      enabled: true
+      bar-segments: 10
+      executor-text: '&4☠ EXECUTING &f%target% &8| %bar% &f%percent%%%'
+      target-text: '&4☠ &f%executor% &cis executing you &8| %bar% &f%percent%%%'
+      success-executor: '&4&lEXECUTION COMPLETE'
+      success-target: '&4&lEXECUTED'
+      cancelled: '&c&lEXECUTION INTERRUPTED'
 
 # v0.3.1 Stability & Safety
 stability:
