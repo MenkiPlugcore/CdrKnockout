@@ -4,6 +4,7 @@ import dev.cadera.cdrknockout.command.CdrKnockoutCommand;
 import dev.cadera.cdrknockout.command.GiveUpCommand;
 import dev.cadera.cdrknockout.core.KnockoutManager;
 import dev.cadera.cdrknockout.core.KnockoutPersistence;
+import dev.cadera.cdrknockout.execution.ExecutionManager;
 import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
 import dev.cadera.cdrknockout.listener.KnockoutListener;
 import dev.cadera.cdrknockout.revive.ReviveManager;
@@ -17,6 +18,7 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
     private KnockoutPersistence persistence;
     private KnockoutManager knockoutManager;
     private ReviveManager reviveManager;
+    private ExecutionManager executionManager;
     private AxGravesCompatibility axGravesCompatibility;
 
     @Override
@@ -31,15 +33,18 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
 
         knockoutManager = new KnockoutManager(this, messages, persistence);
         reviveManager = new ReviveManager(this, knockoutManager, messages);
+        executionManager = new ExecutionManager(this, knockoutManager, reviveManager, messages);
+        reviveManager.setExecutionManager(executionManager);
         knockoutManager.setReviveManager(reviveManager);
         axGravesCompatibility = new AxGravesCompatibility(this, knockoutManager);
 
         knockoutManager.start();
         reviveManager.start();
+        executionManager.start();
         axGravesCompatibility.start();
 
         getServer().getPluginManager().registerEvents(
-                new KnockoutListener(this, knockoutManager, reviveManager, messages), this
+                new KnockoutListener(this, knockoutManager, reviveManager, executionManager, messages), this
         );
 
         CdrKnockoutCommand commandHandler = new CdrKnockoutCommand(
@@ -69,6 +74,9 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         if (axGravesCompatibility != null) {
             axGravesCompatibility.shutdown();
         }
+        if (executionManager != null) {
+            executionManager.shutdown();
+        }
         if (reviveManager != null) {
             reviveManager.shutdown();
         }
@@ -85,6 +93,9 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         messages.reload();
         if (persistence != null) {
             persistence.reload();
+        }
+        if (executionManager != null) {
+            executionManager.onReload();
         }
         reviveManager.onReload();
         knockoutManager.onReload();
