@@ -3,8 +3,9 @@ version: '${project.version}'
 main: dev.cadera.cdrknockout.CdrKnockoutPlugin
 api-version: '1.21'
 author: CADERA
-description: Modular knockout core for Paper servers.
+description: Modular knockout, revive, and requirement engine for Paper servers.
 website: https://github.com/MenkiPlugcore/CdrKnockout
+softdepend: [Vault, AuraSkills]
 
 commands:
   cdrko:
@@ -28,4 +29,7 @@ permissions:
     default: op
   cdrknockout.bypass:
     description: Prevent automatic lethal damage from entering knockout.
+    default: false
+  cdrknockout.revive.special:
+    description: Example permission requirement for revive.
     default: false
