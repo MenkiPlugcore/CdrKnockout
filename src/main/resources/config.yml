@@ -1,5 +1,5 @@
-# CdrKnockout v0.2.1
-# Core Knockout + Passive Revive + Requirement Engine + Bleedout & Death Engine
+# CdrKnockout v0.3.0
+# Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death + AxGraves Compatibility
 
 debug: false
 
@@ -14,8 +14,7 @@ knockout:
     - CREATIVE
     - SPECTATOR
 
-  # v0.2.1: VOID tidak lagi di-ignore secara default supaya bisa masuk KO lalu
-  # diproses oleh environmental/downed damage engine.
+  # VOID tidak di-ignore supaya environmental/downed damage engine dapat memprosesnya.
   ignored-damage-causes:
     - KILL
 
@@ -77,7 +76,6 @@ knockout:
   bleedout:
     enabled: true
 
-    # Warning hanya dikirim sekali pada threshold yang tepat.
     warnings:
       enabled: true
       thresholds-seconds: [30, 10, 5]
@@ -90,7 +88,6 @@ knockout:
       volume: 0.9
       pitch: 0.7
 
-    # Detak jantung saat kondisi kritis.
     heartbeat:
       enabled: true
       start-at-seconds: 10
@@ -99,10 +96,9 @@ knockout:
       volume: 0.8
       pitch: 1.0
 
-    # Damage yang diterima saat sudah KNOCKED tidak mengurangi HP secara vanilla.
     # IGNORE        = damage dibatalkan, timer tidak berubah.
     # REDUCE_TIMER  = damage dibatalkan, waktu bleedout dipotong.
-    # INSTANT_DEATH = langsung real death melalui jalur normal PlayerDeathEvent.
+    # INSTANT_DEATH = real death melalui PlayerDeathEvent normal.
     downed-damage:
       default-mode: REDUCE_TIMER
       default-reduce-seconds: 4
@@ -204,6 +200,22 @@ revive:
       success-reviver: '&a&lREVIVE SUCCESS'
       success-target: '&a&lREVIVED'
       cancelled: '&c&lREVIVE INTERRUPTED'
+
+# v0.3.0 AxGraves compatibility.
+# Integrasi ini tidak mengambil alih inventory/EXP. AxGraves tetap menerima PlayerDeathEvent normal.
+compatibility:
+  axgraves:
+    enabled: true
+
+    # Safety net: GravePreSpawnEvent dibatalkan jika target masih KNOCKED dan belum real death.
+    block-graves-while-knocked: true
+
+    # Satu CdrKnockout managed real-death hanya boleh menghasilkan satu GravePreSpawnEvent.
+    prevent-duplicate-managed-graves: true
+    duplicate-window-ticks: 40
+
+    # Aktifkan hanya saat troubleshooting karena dapat menambah log console.
+    log-diagnostics: false
 
 admin-revive:
   health: 6.0
