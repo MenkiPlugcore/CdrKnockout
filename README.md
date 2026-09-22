@@ -2,15 +2,17 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v0.1.1 — Passive Revive Core**
+Versi saat ini: **v0.2.0 — Requirement Engine**
 
-> Status: alpha / development. Core knockout dan passive proximity revive sudah tersedia; requirement lanjutan dan regression AxGraves formal masih mengikuti roadmap.
+> Status: alpha / development. Core knockout, passive proximity revive, dan requirement engine sudah tersedia. Regression AxGraves formal dan advanced bleedout mengikuti roadmap.
 
 ## Target platform
 
 - Paper 1.21.11
 - Java 21
-- Dirancang agar real death tetap melewati `PlayerDeathEvent` normal sehingga grave plugin seperti AxGraves dapat bekerja setelah bleedout/forced death.
+- Optional integration: Vault + economy provider
+- Optional integration: AuraSkills
+- Real death tetap melewati `PlayerDeathEvent` normal agar grave plugin seperti AxGraves dapat bekerja setelah bleedout/forced death.
 
 ## Knockout Core
 
@@ -22,29 +24,75 @@ Versi saat ini: **v0.1.1 — Passive Revive Core**
 - ALL / WHITELIST / BLACKLIST world policy.
 - Bleedout menjadi real death.
 
-## v0.1.1 Passive Revive
+## Passive Revive
 
-Revive tidak membutuhkan klik.
+Revive tidak membutuhkan klik kiri/kanan.
 
 ```text
 Player KNOCKED
       ↑ <= 1 block
-Reviver + SNEAK + revive item di MAIN HAND
+Reviver + SNEAK + requirement terpenuhi
       ↓
 channel progress
       ↓
 100% -> REVIVED
 ```
 
-Default:
+Default tetap kompatibel dengan v0.1.1:
 
 - Max distance: `1.0` block.
-- Item: `GOLDEN_APPLE`.
 - Duration: `8` detik.
-- Item dikonsumsi hanya setelah sukses.
-- Klik kanan item diblok saat kondisi revive terpenuhi agar Golden Apple tidak termakan.
-- Channel batal jika jongkok dilepas, terlalu jauh, item berubah/hilang, reviver mati/KO/logout/pindah world.
-- Damage dan attack cancellation dapat diatur di config.
+- Requirement default: `1x GOLDEN_APPLE` di main hand.
+- Cost baru dikonsumsi saat progress berhasil 100%.
+
+## v0.2.0 Requirement Engine
+
+Requirement tersedia:
+
+- `ITEM`
+- `XP_LEVEL`
+- `MONEY` via Vault
+- `AURASKILLS`
+- `PERMISSION`
+
+Semua requirement dapat di-enable/disable dari `config.yml`.
+
+### Mode ALL
+
+Semua requirement yang aktif wajib terpenuhi. Semua cost yang aktif akan diproses ketika revive sukses.
+
+```yaml
+revive:
+  requirements:
+    mode: ALL
+    item:
+      enabled: true
+      material: GOLDEN_APPLE
+      amount: 1
+      consume-on-success: true
+    xp-level:
+      enabled: true
+      minimum-level: 10
+      consume-on-success: false
+```
+
+### Mode ANY
+
+Cukup satu requirement aktif. Requirement yang digunakan dipilih berdasarkan `any-priority`, dan hanya cost requirement terpilih yang diproses.
+
+```yaml
+revive:
+  requirements:
+    mode: ANY
+    any-priority:
+      - ITEM
+      - XP_LEVEL
+      - MONEY
+      - AURASKILLS
+      - PERMISSION
+```
+
+Requirement yang terpilih saat channel dimulai dikunci untuk sesi tersebut. Jadi requirement tidak dapat diam-diam berganti di tengah revive.
 
 ## Commands
 
@@ -67,19 +115,18 @@ mvn clean package
 Output:
 
 ```text
-target/CdrKnockout-0.1.1.jar
+target/CdrKnockout-0.2.0.jar
 ```
 
-## Test flow
+## Test flow v0.2.0
 
-1. Knock target dengan lethal hit atau `/cdrko knockout <player>`.
-2. Pastikan target tiarap dan tidak mati.
-3. Reviver memegang Golden Apple di main hand.
-4. Berdiri maksimal 1 block dari target lalu tahan sneak.
-5. Jangan klik apa pun; progress ActionBar mulai otomatis.
-6. Setelah 100%, target bangun dan 1 Golden Apple dikonsumsi.
-7. Ulangi lalu putuskan sneak / menjauh / ganti item untuk memastikan revive cancel.
-8. Biarkan target bleedout untuk memastikan real death masih diteruskan ke AxGraves.
+1. Test default ITEM-only revive terlebih dahulu.
+2. Enable `xp-level` dan mode `ALL`; pastikan reviver dengan level kurang dari minimum tidak dapat memulai channel.
+3. Ganti mode `ANY`; pastikan salah satu requirement cukup.
+4. Jika Vault tersedia, enable `money` dan pastikan saldo hanya ditarik setelah revive sukses.
+5. Jika AuraSkills tersedia, enable requirement skill dan uji skill/level yang dikonfigurasi.
+6. Enable permission requirement untuk menguji node khusus.
+7. Pastikan bleedout tetap menghasilkan real death dan AxGraves hanya bekerja setelah kematian asli.
 
 ## License
 
