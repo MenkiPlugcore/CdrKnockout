@@ -2,6 +2,31 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [0.3.1] - 2026-09-22
+
+### Added
+- Persistent knockout state di `plugins/CdrKnockout/knockouts.yml`.
+- Relog/restart/reload recovery untuk player yang masih KNOCKED.
+- Config `stability.persistence.offline-time-counts` untuk memilih timer tetap berjalan atau pause saat offline.
+- Recovery anchor dengan configurable missing-world policy.
+- Teleport safety policy `BLOCK` / `FOLLOW`.
+- World-change reassert safety-net.
+- Persistence autosave dan immediate flush pada state transition penting.
+- Recovery messages untuk relog/expired/missing-world.
+- Duplicate KO session guard menggunakan `putIfAbsent`.
+
+### Changed
+- Logout tidak lagi otomatis menghapus status KNOCKED ketika persistence aktif.
+- Shutdown menyimpan session sebelum membersihkan runtime state.
+- Downed timer reduction ikut memperbarui persisted state.
+- Revive dan real death menghapus persisted state sebelum menyelesaikan transisi.
+- Teleport internal recovery diberi bypass guard agar tidak diblok listener sendiri.
+
+### Safety
+- Logout tidak dapat dipakai untuk menghindari bleedout jika `offline-time-counts: true`.
+- Managed real death tetap mempertahankan AxGraves compatibility flow.
+- Runtime recovery dibuat idempotent agar join/reload hook ganda tidak membuat duplicate session.
+
 ## [0.3.0] - 2026-09-22
 
 ### Added
