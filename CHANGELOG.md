@@ -2,6 +2,23 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [0.3.0] - 2026-09-22
+
+### Added
+- AxGraves runtime compatibility layer tanpa compile-time dependency.
+- `AxGraves` ditambahkan sebagai `softdepend` untuk load-order compatibility.
+- Reflective hook ke `GravePreSpawnEvent` ketika AxGraves tersedia.
+- Safety guard yang membatalkan grave jika player masih berstatus `KNOCKED`.
+- Duplicate-grave guard untuk CdrKnockout-managed real-death cycle.
+- Config `compatibility.axgraves.*`.
+- `/cdrko compat` untuk melihat status hook, versi AxGraves, dan jumlah grave yang diblok safety guard.
+- Regression checklist `docs/AXGRAVES-COMPATIBILITY.md`.
+
+### Compatibility
+- CdrKnockout tetap tidak mengubah death drops, keepInventory, keepLevel, atau dropped EXP.
+- Inventory/EXP grave tetap dikelola AxGraves pada `PlayerDeathEvent` nyata.
+- Jika AxGraves tidak terpasang atau event API berubah, CdrKnockout tetap memakai natural PlayerDeathEvent flow tanpa mematikan core knockout.
+
 ## [0.2.1] - 2026-09-22
 
 ### Added
