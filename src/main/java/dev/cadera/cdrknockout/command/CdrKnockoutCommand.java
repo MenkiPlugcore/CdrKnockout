@@ -2,6 +2,7 @@ package dev.cadera.cdrknockout.command;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
 import dev.cadera.cdrknockout.util.Messages;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -19,16 +20,27 @@ import java.util.Locale;
 
 public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBCOMMANDS = List.of("reload", "knockout", "revive", "kill", "status");
+    private static final List<String> SUBCOMMANDS = List.of("reload", "knockout", "revive", "kill", "status", "compat");
 
     private final CdrKnockoutPlugin plugin;
     private final KnockoutManager manager;
     private final Messages messages;
+    private final AxGravesCompatibility axGravesCompatibility;
 
     public CdrKnockoutCommand(CdrKnockoutPlugin plugin, KnockoutManager manager, Messages messages) {
+        this(plugin, manager, messages, null);
+    }
+
+    public CdrKnockoutCommand(
+            CdrKnockoutPlugin plugin,
+            KnockoutManager manager,
+            Messages messages,
+            AxGravesCompatibility axGravesCompatibility
+    ) {
         this.plugin = plugin;
         this.manager = manager;
         this.messages = messages;
+        this.axGravesCompatibility = axGravesCompatibility;
     }
 
     @Override
@@ -54,6 +66,14 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
             }
             plugin.reloadRuntimeConfig();
             sender.sendMessage(messages.format("reload"));
+            return true;
+        }
+
+        if (sub.equals("compat")) {
+            if (!checkPermission(sender, "cdrknockout.command.compat")) {
+                return true;
+            }
+            handleCompatibility(sender);
             return true;
         }
 
@@ -116,6 +136,29 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(messages.format("status-knocked", "%player%", target.getName(), "%time%", time));
     }
 
+    private void handleCompatibility(CommandSender sender) {
+        sender.sendMessage(messages.color("&8&m----------------------------------------"));
+        sender.sendMessage(messages.color("&c&lCdrKnockout &7- &fAxGraves Compatibility"));
+
+        if (axGravesCompatibility == null) {
+            sender.sendMessage(messages.color("&7Status: &eNOT INITIALIZED"));
+            sender.sendMessage(messages.color("&8&m----------------------------------------"));
+            return;
+        }
+
+        String status = axGravesCompatibility.statusName();
+        String statusColor = status.equals("ACTIVE") ? "&a" : status.equals("NOT_INSTALLED") ? "&7" : "&e";
+        sender.sendMessage(messages.color("&7Status: " + statusColor + status));
+        sender.sendMessage(messages.color("&7AxGraves version: &f" + axGravesCompatibility.detectedVersion()));
+        sender.sendMessage(messages.color("&7Pre-spawn hook: " + (axGravesCompatibility.isHookActive() ? "&aACTIVE" : "&eINACTIVE")));
+        sender.sendMessage(messages.color("&7Blocked KO graves: &f" + axGravesCompatibility.blockedKnockedGraves()));
+        sender.sendMessage(messages.color("&7Blocked duplicate graves: &f" + axGravesCompatibility.blockedDuplicateGraves()));
+        if (!axGravesCompatibility.hookFailure().isBlank()) {
+            sender.sendMessage(messages.color("&7Hook detail: &c" + axGravesCompatibility.hookFailure()));
+        }
+        sender.sendMessage(messages.color("&8&m----------------------------------------"));
+    }
+
     private boolean checkPermission(CommandSender sender, String permission) {
         if (sender.hasPermission(permission)) {
             return true;
@@ -135,7 +178,9 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
             String prefix = args[0].toLowerCase(Locale.ROOT);
             return SUBCOMMANDS.stream().filter(value -> value.startsWith(prefix)).toList();
         }
-        if (args.length == 2 && !args[0].equalsIgnoreCase("reload")) {
+        if (args.length == 2
+                && !args[0].equalsIgnoreCase("reload")
+                && !args[0].equalsIgnoreCase("compat")) {
             String prefix = args[1].toLowerCase(Locale.ROOT);
             List<String> names = new ArrayList<>();
             for (Player player : Bukkit.getOnlinePlayers()) {
