@@ -15,12 +15,14 @@ public final class KnockoutSession {
 
     private final UUID playerId;
     private final long startedAtMillis;
-    private final long expiresAtMillis;
+    private long expiresAtMillis;
     private final Location anchor;
     private final boolean originalSwimming;
     private final Map<PotionEffectType, PotionEffect> previousEffects;
     private final Set<PotionEffectType> managedEffects;
+    private final Set<Integer> sentWarningThresholds = new HashSet<>();
     private long lastDisplayedSecond = Long.MIN_VALUE;
+    private long lastHeartbeatMillis = Long.MIN_VALUE;
 
     public KnockoutSession(
             UUID playerId,
@@ -74,6 +76,27 @@ public final class KnockoutSession {
         }
         long millis = Math.max(0L, expiresAtMillis - now);
         return (millis + 999L) / 1000L;
+    }
+
+    public long reduceRemainingMillis(long millis, long now) {
+        if (expiresAtMillis == Long.MAX_VALUE || millis <= 0L) {
+            return remainingSeconds(now);
+        }
+        expiresAtMillis = Math.max(now, expiresAtMillis - millis);
+        lastDisplayedSecond = Long.MIN_VALUE;
+        return remainingSeconds(now);
+    }
+
+    public boolean markWarningSent(int threshold) {
+        return sentWarningThresholds.add(threshold);
+    }
+
+    public boolean shouldHeartbeat(long now, long intervalMillis) {
+        if (lastHeartbeatMillis == Long.MIN_VALUE || now - lastHeartbeatMillis >= intervalMillis) {
+            lastHeartbeatMillis = now;
+            return true;
+        }
+        return false;
     }
 
     public boolean shouldRefreshDisplay(long remainingSeconds) {

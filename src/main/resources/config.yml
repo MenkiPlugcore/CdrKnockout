@@ -1,5 +1,5 @@
-# CdrKnockout v0.2.0
-# Core Knockout + Passive Revive + Requirement Engine
+# CdrKnockout v0.2.1
+# Core Knockout + Passive Revive + Requirement Engine + Bleedout & Death Engine
 
 debug: false
 
@@ -14,14 +14,12 @@ knockout:
     - CREATIVE
     - SPECTATOR
 
+  # v0.2.1: VOID tidak lagi di-ignore secara default supaya bisa masuk KO lalu
+  # diproses oleh environmental/downed damage engine.
   ignored-damage-causes:
-    - VOID
     - KILL
 
   worlds:
-    # ALL = semua world
-    # WHITELIST = hanya world pada list
-    # BLACKLIST = semua kecuali world pada list
     mode: ALL
     list: []
 
@@ -62,6 +60,7 @@ knockout:
         - r
         - reply
         - helpop
+        - giveup
         - cdrko
         - cdrknockout
         - cko
@@ -78,19 +77,79 @@ knockout:
   bleedout:
     enabled: true
 
+    # Warning hanya dikirim sekali pada threshold yang tepat.
+    warnings:
+      enabled: true
+      thresholds-seconds: [30, 10, 5]
+      chat-enabled: true
+      title:
+        enabled: true
+        title: '&c&lBLEEDING OUT'
+        subtitle: '&f%time%s remaining'
+      sound: 'minecraft:block.note_block.bass'
+      volume: 0.9
+      pitch: 0.7
+
+    # Detak jantung saat kondisi kritis.
+    heartbeat:
+      enabled: true
+      start-at-seconds: 10
+      interval-ms: 1000
+      sound: 'minecraft:entity.warden.heartbeat'
+      volume: 0.8
+      pitch: 1.0
+
+    # Damage yang diterima saat sudah KNOCKED tidak mengurangi HP secara vanilla.
+    # IGNORE        = damage dibatalkan, timer tidak berubah.
+    # REDUCE_TIMER  = damage dibatalkan, waktu bleedout dipotong.
+    # INSTANT_DEATH = langsung real death melalui jalur normal PlayerDeathEvent.
+    downed-damage:
+      default-mode: REDUCE_TIMER
+      default-reduce-seconds: 4
+      display-penalty-actionbar: true
+      penalty-actionbar: '&4-%seconds%s &7bleedout &8| &c%time%s left'
+
+      cause-overrides:
+        VOID:
+          mode: INSTANT_DEATH
+        LAVA:
+          mode: REDUCE_TIMER
+          reduce-seconds: 8
+        FIRE:
+          mode: REDUCE_TIMER
+          reduce-seconds: 4
+        FIRE_TICK:
+          mode: REDUCE_TIMER
+          reduce-seconds: 2
+        DROWNING:
+          mode: REDUCE_TIMER
+          reduce-seconds: 5
+        SUFFOCATION:
+          mode: REDUCE_TIMER
+          reduce-seconds: 4
+        FREEZE:
+          mode: REDUCE_TIMER
+          reduce-seconds: 4
+        ENTITY_EXPLOSION:
+          mode: REDUCE_TIMER
+          reduce-seconds: 10
+        BLOCK_EXPLOSION:
+          mode: REDUCE_TIMER
+          reduce-seconds: 10
+        FALL:
+          mode: IGNORE
+
+    giveup:
+      enabled: true
+
 revive:
   enabled: true
   max-distance: 1.0
   duration-seconds: 8.0
 
-  # v0.2.0 Requirement Engine
   requirements:
-    # ALL = seluruh requirement yang enabled wajib terpenuhi.
-    # ANY = cukup satu requirement enabled; requirement terpilih mengikuti any-priority.
     mode: ALL
 
-    # Khusus mode ANY. Requirement pertama yang terpenuhi menjadi requirement sesi
-    # dan hanya cost dari requirement terpilih yang dikonsumsi saat sukses.
     any-priority:
       - ITEM
       - XP_LEVEL
@@ -98,7 +157,6 @@ revive:
       - AURASKILLS
       - PERMISSION
 
-    # Mencegah spam pesan ketika player jongkok dekat target tetapi syarat belum terpenuhi.
     failure-message-cooldown-ms: 2000
 
     item:
@@ -113,14 +171,11 @@ revive:
       consume-on-success: false
       consume-levels: 0
 
-    # Membutuhkan Vault + economy provider jika diaktifkan.
     money:
       enabled: false
       amount: 5000.0
       withdraw-on-success: true
 
-    # Membutuhkan AuraSkills jika diaktifkan.
-    # Integrasi v0.2.0 mendukung built-in skill enum seperti FIGHTING/MINING/FARMING.
     auraskills:
       enabled: false
       skill: FIGHTING
@@ -131,8 +186,6 @@ revive:
       node: cdrknockout.revive.special
 
   channel:
-    # Revive selalu batal jika berhenti jongkok, menjauh > max-distance,
-    # requirement sesi tidak lagi terpenuhi, mati, KO, logout, atau pindah world.
     cancel-on-damage: true
     cancel-on-attack: true
     cancel-on-move: false

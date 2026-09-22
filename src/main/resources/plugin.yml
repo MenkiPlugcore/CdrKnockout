@@ -3,7 +3,7 @@ version: '${project.version}'
 main: dev.cadera.cdrknockout.CdrKnockoutPlugin
 api-version: '1.21'
 author: CADERA
-description: Modular knockout, revive, and requirement engine for Paper servers.
+description: Modular knockout, revive, requirement, bleedout, and death engine for Paper servers.
 website: https://github.com/MenkiPlugcore/CdrKnockout
 softdepend: [Vault, AuraSkills]
 
@@ -13,6 +13,10 @@ commands:
     usage: /cdrko <reload|knockout|revive|kill|status> [player]
     aliases: [cdrknockout, cko]
     permission: cdrknockout.command
+  giveup:
+    description: Give up while KNOCKED and enter real death.
+    usage: /giveup
+    permission: cdrknockout.giveup
 
 permissions:
   cdrknockout.command:
@@ -33,3 +37,6 @@ permissions:
   cdrknockout.revive.special:
     description: Example permission requirement for revive.
     default: false
+  cdrknockout.giveup:
+    description: Allows a knocked player to use /giveup.
+    default: true

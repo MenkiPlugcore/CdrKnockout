@@ -33,6 +33,7 @@ public final class KnockoutManager {
     private final CdrKnockoutPlugin plugin;
     private final Messages messages;
     private final Map<UUID, KnockoutSession> sessions = new HashMap<>();
+    private final Set<UUID> deathInProgress = new HashSet<>();
     private ReviveManager reviveManager;
     private BukkitTask ticker;
 
@@ -64,6 +65,7 @@ public final class KnockoutManager {
             }
         }
         sessions.clear();
+        deathInProgress.clear();
     }
 
     public void onReload() {
@@ -72,6 +74,10 @@ public final class KnockoutManager {
 
     public boolean isKnocked(Player player) {
         return sessions.containsKey(player.getUniqueId());
+    }
+
+    public boolean isDeathInProgress(Player player) {
+        return deathInProgress.contains(player.getUniqueId());
     }
 
     public KnockoutSession getSession(Player player) {
@@ -88,7 +94,7 @@ public final class KnockoutManager {
         if (!config.getBoolean("knockout.enabled", true)) {
             return false;
         }
-        if (isKnocked(player) || player.isDead()) {
+        if (isKnocked(player) || isDeathInProgress(player) || player.isDead()) {
             return false;
         }
         if (player.hasPermission("cdrknockout.bypass")) {
@@ -112,7 +118,7 @@ public final class KnockoutManager {
     }
 
     public boolean knockout(Player player, EntityDamageEvent.DamageCause cause, boolean force) {
-        if (isKnocked(player)) {
+        if (isKnocked(player) || isDeathInProgress(player)) {
             return false;
         }
         if (!force && !isWorldEnabled(player.getWorld())) {
@@ -165,6 +171,43 @@ public final class KnockoutManager {
         return true;
     }
 
+    public void handleDownedDamage(Player player, EntityDamageEvent event) {
+        event.setCancelled(true);
+        KnockoutSession session = sessions.get(player.getUniqueId());
+        if (session == null || deathInProgress.contains(player.getUniqueId())) {
+            return;
+        }
+
+        DownedDamageMode mode = resolveDownedDamageMode(event.getCause());
+        switch (mode) {
+            case IGNORE -> debug("Downed damage ignored: " + player.getName() + " cause=" + event.getCause());
+            case INSTANT_DEATH -> queueRealDeath(player, "player-downed-fatal", "DOWNED_" + event.getCause().name());
+            case REDUCE_TIMER -> {
+                long seconds = resolveDownedDamageReduction(event.getCause());
+                if (seconds <= 0L || session.expiresAtMillis() == Long.MAX_VALUE) {
+                    return;
+                }
+                long remaining = session.reduceRemainingMillis(seconds * 1000L, System.currentTimeMillis());
+                if (plugin.getConfig().getBoolean("knockout.bleedout.downed-damage.display-penalty-actionbar", true)) {
+                    String text = plugin.getConfig().getString(
+                            "knockout.bleedout.downed-damage.penalty-actionbar",
+                            "&4-%seconds%s &7bleedout &8| &c%time%s left"
+                    );
+                    if (text != null && !text.isBlank()) {
+                        text = text.replace("%seconds%", Long.toString(seconds))
+                                .replace("%time%", Long.toString(remaining));
+                        player.sendActionBar(LEGACY.deserialize(text));
+                    }
+                }
+                debug("Downed damage reduced timer: " + player.getName() + " cause=" + event.getCause()
+                        + " seconds=" + seconds + " remaining=" + remaining);
+                if (remaining <= 0L) {
+                    queueRealDeath(player, "player-bleedout", "DOWNED_DAMAGE_TIMEOUT");
+                }
+            }
+        }
+    }
+
     public boolean revive(Player player) {
         double configuredHealth = Math.max(0.5D, plugin.getConfig().getDouble("admin-revive.health", 6.0D));
         int resistanceSeconds = Math.max(0, plugin.getConfig().getInt("admin-revive.resistance-seconds", 3));
@@ -172,6 +215,9 @@ public final class KnockoutManager {
     }
 
     public boolean revive(Player player, double health, int resistanceSeconds) {
+        if (deathInProgress.contains(player.getUniqueId())) {
+            return false;
+        }
         if (reviveManager != null) {
             reviveManager.cancelTarget(player, false);
         }
@@ -193,23 +239,54 @@ public final class KnockoutManager {
     }
 
     public boolean forceDeath(Player player) {
+        return queueRealDeath(player, "player-bleedout", "ADMIN_FORCE_DEATH");
+    }
+
+    public boolean giveUp(Player player) {
+        if (!plugin.getConfig().getBoolean("knockout.bleedout.giveup.enabled", true)) {
+            return false;
+        }
+        return queueRealDeath(player, "player-giveup", "GIVEUP");
+    }
+
+    private boolean queueRealDeath(Player player, String messageKey, String reason) {
+        UUID uuid = player.getUniqueId();
+        if (!sessions.containsKey(uuid) || !deathInProgress.add(uuid)) {
+            return false;
+        }
+
         if (reviveManager != null) {
             reviveManager.cancelTarget(player, false);
         }
 
-        KnockoutSession session = sessions.remove(player.getUniqueId());
-        if (session == null) {
-            return false;
-        }
-
-        restorePlayer(player, session);
-        player.sendMessage(messages.format("player-bleedout"));
-        debug("Real death pass-through: " + player.getName());
-        player.setHealth(0.0D);
+        debug("Queue real death: " + player.getName() + " reason=" + reason);
+        plugin.getServer().getScheduler().runTask(plugin, () -> executeRealDeath(uuid, messageKey, reason));
         return true;
     }
 
+    private void executeRealDeath(UUID uuid, String messageKey, String reason) {
+        Player player = plugin.getServer().getPlayer(uuid);
+        KnockoutSession session = sessions.remove(uuid);
+        if (player == null || !player.isOnline() || session == null) {
+            deathInProgress.remove(uuid);
+            return;
+        }
+
+        restorePlayer(player, session);
+        if (messageKey != null && !messageKey.isBlank()) {
+            player.sendMessage(messages.format(messageKey));
+        }
+        debug("Real death pass-through: " + player.getName() + " reason=" + reason);
+
+        if (!player.isDead()) {
+            player.setHealth(0.0D);
+        }
+
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> deathInProgress.remove(uuid), 2L);
+    }
+
     public void cleanupExternalDeath(Player player) {
+        deathInProgress.remove(player.getUniqueId());
         if (reviveManager != null) {
             reviveManager.cancelTarget(player, false);
         }
@@ -220,6 +297,7 @@ public final class KnockoutManager {
     }
 
     public void cleanupQuit(Player player) {
+        deathInProgress.remove(player.getUniqueId());
         if (reviveManager != null) {
             reviveManager.cancelTarget(player, false);
         }
@@ -273,7 +351,7 @@ public final class KnockoutManager {
         long now = System.currentTimeMillis();
         for (UUID uuid : new ArrayList<>(sessions.keySet())) {
             KnockoutSession session = sessions.get(uuid);
-            if (session == null) {
+            if (session == null || deathInProgress.contains(uuid)) {
                 continue;
             }
 
@@ -288,7 +366,7 @@ public final class KnockoutManager {
             }
 
             if (session.expiresAtMillis() != Long.MAX_VALUE && now >= session.expiresAtMillis()) {
-                forceDeath(player);
+                queueRealDeath(player, "player-bleedout", "BLEEDOUT");
                 continue;
             }
 
@@ -298,6 +376,8 @@ public final class KnockoutManager {
             }
 
             long remaining = session.remainingSeconds(now);
+            processBleedoutFeedback(player, session, remaining, now);
+
             if (plugin.getConfig().getBoolean("knockout.display.actionbar.enabled", true)
                     && (reviveManager == null || !reviveManager.isTargetBeingRevived(player))
                     && session.shouldRefreshDisplay(remaining)) {
@@ -311,6 +391,119 @@ public final class KnockoutManager {
                 }
             }
         }
+    }
+
+    private void processBleedoutFeedback(Player player, KnockoutSession session, long remaining, long now) {
+        if (remaining == Long.MAX_VALUE || remaining <= 0L) {
+            return;
+        }
+
+        if (plugin.getConfig().getBoolean("knockout.bleedout.warnings.enabled", true)) {
+            List<Integer> thresholds = plugin.getConfig().getIntegerList("knockout.bleedout.warnings.thresholds-seconds");
+            if (thresholds.isEmpty()) {
+                thresholds = List.of(30, 10, 5);
+            }
+            for (int threshold : thresholds) {
+                if (threshold > 0 && remaining == threshold && session.markWarningSent(threshold)) {
+                    sendBleedoutWarning(player, threshold);
+                }
+            }
+        }
+
+        if (plugin.getConfig().getBoolean("knockout.bleedout.heartbeat.enabled", true)) {
+            long criticalAt = Math.max(1L, plugin.getConfig().getLong(
+                    "knockout.bleedout.heartbeat.start-at-seconds",
+                    10L
+            ));
+            long interval = Math.max(200L, plugin.getConfig().getLong(
+                    "knockout.bleedout.heartbeat.interval-ms",
+                    1000L
+            ));
+            if (remaining <= criticalAt && session.shouldHeartbeat(now, interval)) {
+                playConfiguredSound(
+                        player,
+                        "knockout.bleedout.heartbeat.sound",
+                        "minecraft:entity.warden.heartbeat",
+                        "knockout.bleedout.heartbeat.volume",
+                        0.8F,
+                        "knockout.bleedout.heartbeat.pitch",
+                        1.0F
+                );
+            }
+        }
+    }
+
+    private void sendBleedoutWarning(Player player, int seconds) {
+        if (plugin.getConfig().getBoolean("knockout.bleedout.warnings.chat-enabled", true)) {
+            player.sendMessage(messages.format("bleedout-warning", "%time%", Integer.toString(seconds)));
+        }
+
+        if (plugin.getConfig().getBoolean("knockout.bleedout.warnings.title.enabled", true)) {
+            String title = messages.color(plugin.getConfig().getString(
+                    "knockout.bleedout.warnings.title.title",
+                    "&c&lBLEEDING OUT"
+            ));
+            String subtitle = messages.color(plugin.getConfig().getString(
+                    "knockout.bleedout.warnings.title.subtitle",
+                    "&f%time%s remaining"
+            )).replace("%time%", Integer.toString(seconds));
+            player.sendTitle(title, subtitle, 2, 20, 5);
+        }
+
+        playConfiguredSound(
+                player,
+                "knockout.bleedout.warnings.sound",
+                "minecraft:block.note_block.bass",
+                "knockout.bleedout.warnings.volume",
+                0.9F,
+                "knockout.bleedout.warnings.pitch",
+                0.7F
+        );
+    }
+
+    private void playConfiguredSound(
+            Player player,
+            String soundPath,
+            String fallbackSound,
+            String volumePath,
+            float fallbackVolume,
+            String pitchPath,
+            float fallbackPitch
+    ) {
+        String sound = plugin.getConfig().getString(soundPath, fallbackSound);
+        if (sound == null || sound.isBlank()) {
+            return;
+        }
+        float volume = (float) Math.max(0.0D, plugin.getConfig().getDouble(volumePath, fallbackVolume));
+        float pitch = (float) Math.max(0.01D, plugin.getConfig().getDouble(pitchPath, fallbackPitch));
+        player.playSound(player.getLocation(), sound, volume, pitch);
+    }
+
+    private DownedDamageMode resolveDownedDamageMode(EntityDamageEvent.DamageCause cause) {
+        String base = "knockout.bleedout.downed-damage.cause-overrides." + cause.name();
+        String configured = plugin.getConfig().getString(base + ".mode");
+        if (configured == null || configured.isBlank()) {
+            configured = plugin.getConfig().getString(
+                    "knockout.bleedout.downed-damage.default-mode",
+                    "REDUCE_TIMER"
+            );
+        }
+        try {
+            return DownedDamageMode.valueOf(configured.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return DownedDamageMode.REDUCE_TIMER;
+        }
+    }
+
+    private long resolveDownedDamageReduction(EntityDamageEvent.DamageCause cause) {
+        String base = "knockout.bleedout.downed-damage.cause-overrides." + cause.name();
+        if (plugin.getConfig().contains(base + ".reduce-seconds")) {
+            return Math.max(0L, plugin.getConfig().getLong(base + ".reduce-seconds"));
+        }
+        return Math.max(0L, plugin.getConfig().getLong(
+                "knockout.bleedout.downed-damage.default-reduce-seconds",
+                4L
+        ));
     }
 
     private void enforcePose(Player player) {
@@ -379,5 +572,11 @@ public final class KnockoutManager {
         if (plugin.getConfig().getBoolean("debug", false)) {
             plugin.getLogger().info("[DEBUG] " + message);
         }
+    }
+
+    private enum DownedDamageMode {
+        IGNORE,
+        REDUCE_TIMER,
+        INSTANT_DEATH
     }
 }

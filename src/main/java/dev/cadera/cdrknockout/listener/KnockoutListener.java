@@ -59,7 +59,7 @@ public final class KnockoutListener implements Listener {
         reviveManager.onPlayerDamaged(player);
 
         if (manager.isKnocked(player)) {
-            event.setCancelled(true);
+            manager.handleDownedDamage(player, event);
             return;
         }
 

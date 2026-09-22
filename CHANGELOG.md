@@ -2,43 +2,40 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [0.2.1] - 2026-09-22
+
+### Added
+- Advanced Bleedout & Death Engine.
+- Configurable warning threshold, default 30/10/5 detik.
+- Critical heartbeat sound menjelang bleedout.
+- Downed damage modes: `IGNORE`, `REDUCE_TIMER`, `INSTANT_DEATH`.
+- Per-damage-cause override untuk environmental dan combat damage.
+- Default handling untuk VOID, lava, fire, drowning, suffocation, freeze, explosion, dan fall.
+- `/giveup` command + permission `cdrknockout.giveup`.
+- ActionBar feedback ketika downed damage memotong bleedout timer.
+- Death-in-progress guard untuk mencegah duplicate real-death queue.
+- Real death dijalankan di scheduler agar tidak re-entrant di dalam damage listener.
+
+### Changed
+- `VOID` tidak lagi di-ignore pada default config sehingga dapat melewati environmental KO/death flow.
+- Damage saat KNOCKED sekarang diproses oleh bleedout engine, bukan sekadar selalu di-ignore.
+- Bleedout timeout, admin kill, giveup, dan fatal downed damage memakai satu real-death path yang konsisten.
+
 ## [0.2.0] - 2026-09-22
 
 ### Added
 - Modular Revive Requirement Engine.
 - Requirement `ITEM`, `XP_LEVEL`, `MONEY`, `AURASKILLS`, dan `PERMISSION`.
-- Semua requirement dapat di-enable/disable dari config.
-- Mode `ALL`: semua requirement aktif wajib terpenuhi.
-- Mode `ANY`: cukup satu requirement aktif berdasarkan configurable priority.
-- Requirement terpilih dikunci per revive session agar tidak berganti di tengah channel.
-- Item cost hanya dikonsumsi saat revive sukses.
-- Optional XP level consumption saat revive sukses.
-- Optional Vault balance check + withdraw saat revive sukses.
-- Optional AuraSkills built-in skill level check melalui soft integration.
-- Optional permission requirement.
-- Requirement re-validation selama channel dan tepat sebelum revive selesai.
-- Cooldown pesan requirement agar tidak spam ketika syarat belum terpenuhi.
-- `softdepend` untuk Vault dan AuraSkills tanpa menjadikan keduanya dependency wajib.
-
-### Changed
-- Default behavior tetap ITEM-only dengan `GOLDEN_APPLE`, sehingga setup v0.1.1 tetap familiar.
-- Passive Revive sekarang menggunakan Requirement Engine sebagai sumber validasi tunggal.
+- Mode `ALL` dan `ANY`.
+- Requirement session locking dan cost processing on success.
+- Optional Vault dan AuraSkills soft integration.
 
 ## [0.1.1] - 2026-09-22
 
 ### Added
 - Passive Proximity Revive tanpa klik kiri/kanan.
 - Reviver wajib maksimal 1 block, jongkok, dan memegang item revive di main hand.
-- Default revive item: `GOLDEN_APPLE`.
-- Configurable revive duration, distance, item, amount, consumption, health, dan resistance.
-- Revive item hanya dikonsumsi setelah revive berhasil 100%.
-- Anti-consume: revive item tidak termakan ketika kondisi passive revive terpenuhi.
-- Revive progress ActionBar untuk reviver dan target.
-- Auto-cancel saat reviver berhenti jongkok, menjauh, mengganti item, mati/KO/logout/pindah world.
-- Optional cancel saat reviver terkena damage, menyerang, atau bergerak.
-- Satu reviver hanya dapat menangani satu target sekaligus.
-- Knockout ActionBar disuppress selama target sedang direvive agar progress tidak flicker.
-- `messages.yml` memakai bundled defaults sehingga upgrade config lama tetap mendapat message key baru.
+- Configurable revive duration, item, consumption, result health, resistance, dan cancel conditions.
 
 ## [0.1.0] - 2026-09-22
 
@@ -48,12 +45,7 @@ Semua perubahan penting CdrKnockout dicatat di file ini.
 - Configurable knockout timer and bleedout.
 - Prone/swimming pose engine.
 - Position lock with free camera movement.
-- Configurable blindness, weakness, slowness, and darkness effects.
-- Gameplay restrictions while knocked.
-- ALL/WHITELIST/BLACKLIST world policy.
-- Totem of Undying protection.
-- `/cdrko reload|knockout|revive|kill|status`.
-- Admin/debug permissions.
-- `config.yml` and `messages.yml`.
+- Configurable effects and gameplay restrictions.
+- World policy, admin commands, debug, config/messages.
 - Real-death pass-through design for grave plugins such as AxGraves.
 - MENKIESTES SOFTWARE LICENSE v1.0.

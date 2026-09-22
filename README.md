@@ -2,9 +2,9 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v0.2.0 — Requirement Engine**
+Versi saat ini: **v0.2.1 — Bleedout & Death Engine**
 
-> Status: alpha / development. Core knockout, passive proximity revive, dan requirement engine sudah tersedia. Regression AxGraves formal dan advanced bleedout mengikuti roadmap.
+> Status: alpha / development. Core knockout, passive proximity revive, requirement engine, dan advanced bleedout/death flow sudah tersedia. Regression AxGraves formal mengikuti v0.3.0.
 
 ## Target platform
 
@@ -12,87 +12,39 @@ Versi saat ini: **v0.2.0 — Requirement Engine**
 - Java 21
 - Optional integration: Vault + economy provider
 - Optional integration: AuraSkills
-- Real death tetap melewati `PlayerDeathEvent` normal agar grave plugin seperti AxGraves dapat bekerja setelah bleedout/forced death.
+- Real death tetap melewati `PlayerDeathEvent` normal agar grave plugin seperti AxGraves dapat menangani kematian asli.
 
-## Knockout Core
+## Core flow
 
-- Lethal damage di-intercept sebelum kematian asli.
-- State `KNOCKED` dengan timer configurable.
-- Pose tiarap berbasis swimming metadata.
-- Position lock dengan kamera tetap bebas.
-- Blindness / Weakness / Slowness / Darkness configurable.
-- ALL / WHITELIST / BLACKLIST world policy.
-- Bleedout menjadi real death.
+```text
+lethal damage
+  -> KNOCKED
+  -> prone + movement lock + bleedout timer
+  -> REVIVED
+     atau
+  -> timer habis / fatal downed damage / /giveup
+  -> REAL DEATH
+  -> PlayerDeathEvent
+  -> grave plugin seperti AxGraves
+```
 
 ## Passive Revive
 
-Revive tidak membutuhkan klik kiri/kanan.
+Reviver harus berada maksimal `1.0` block, jongkok, dan memenuhi requirement aktif. Tidak perlu klik kiri/kanan. Default requirement adalah `1x GOLDEN_APPLE` di main hand dan channel `8` detik.
 
-```text
-Player KNOCKED
-      ↑ <= 1 block
-Reviver + SNEAK + requirement terpenuhi
-      ↓
-channel progress
-      ↓
-100% -> REVIVED
-```
+Requirement tersedia: `ITEM`, `XP_LEVEL`, `MONEY`, `AURASKILLS`, dan `PERMISSION`, dengan mode `ALL` atau `ANY`.
 
-Default tetap kompatibel dengan v0.1.1:
+## v0.2.1 Bleedout & Death Engine
 
-- Max distance: `1.0` block.
-- Duration: `8` detik.
-- Requirement default: `1x GOLDEN_APPLE` di main hand.
-- Cost baru dikonsumsi saat progress berhasil 100%.
-
-## v0.2.0 Requirement Engine
-
-Requirement tersedia:
-
-- `ITEM`
-- `XP_LEVEL`
-- `MONEY` via Vault
-- `AURASKILLS`
-- `PERMISSION`
-
-Semua requirement dapat di-enable/disable dari `config.yml`.
-
-### Mode ALL
-
-Semua requirement yang aktif wajib terpenuhi. Semua cost yang aktif akan diproses ketika revive sukses.
-
-```yaml
-revive:
-  requirements:
-    mode: ALL
-    item:
-      enabled: true
-      material: GOLDEN_APPLE
-      amount: 1
-      consume-on-success: true
-    xp-level:
-      enabled: true
-      minimum-level: 10
-      consume-on-success: false
-```
-
-### Mode ANY
-
-Cukup satu requirement aktif. Requirement yang digunakan dipilih berdasarkan `any-priority`, dan hanya cost requirement terpilih yang diproses.
-
-```yaml
-revive:
-  requirements:
-    mode: ANY
-    any-priority:
-      - ITEM
-      - XP_LEVEL
-      - MONEY
-      - AURASKILLS
-      - PERMISSION
-```
-
-Requirement yang terpilih saat channel dimulai dikunci untuk sesi tersebut. Jadi requirement tidak dapat diam-diam berganti di tengah revive.
+- Warning bleedout configurable, default `30 / 10 / 5` detik.
+- Heartbeat saat kondisi kritis.
+- Downed damage mode: `IGNORE`, `REDUCE_TIMER`, `INSTANT_DEATH`.
+- Per-damage-cause override untuk VOID, lava, fire, drowning, suffocation, freeze, explosion, fall, dan cause lain dari Bukkit.
+- VOID default menjadi `INSTANT_DEATH` setelah player sudah KNOCKED.
+- Lava/fire/drowning/explosion default mempercepat bleedout.
+- `/giveup` untuk menyerah saat KNOCKED.
+- Death guard mencegah multiple real-death queue.
+- Real death dijadwalkan aman di luar damage listener dan tetap menggunakan alur kematian normal Paper.
 
 ## Commands
 
@@ -102,9 +54,10 @@ Requirement yang terpilih saat channel dimulai dikunci untuk sesi tersebut. Jadi
 /cdrko revive <player>
 /cdrko kill <player>
 /cdrko status <player>
+/giveup
 ```
 
-Alias: `/cdrknockout`, `/cko`.
+Alias admin: `/cdrknockout`, `/cko`.
 
 ## Build
 
@@ -115,18 +68,20 @@ mvn clean package
 Output:
 
 ```text
-target/CdrKnockout-0.2.0.jar
+target/CdrKnockout-0.2.1.jar
 ```
 
-## Test flow v0.2.0
+## Test flow v0.2.1
 
-1. Test default ITEM-only revive terlebih dahulu.
-2. Enable `xp-level` dan mode `ALL`; pastikan reviver dengan level kurang dari minimum tidak dapat memulai channel.
-3. Ganti mode `ANY`; pastikan salah satu requirement cukup.
-4. Jika Vault tersedia, enable `money` dan pastikan saldo hanya ditarik setelah revive sukses.
-5. Jika AuraSkills tersedia, enable requirement skill dan uji skill/level yang dikonfigurasi.
-6. Enable permission requirement untuk menguji node khusus.
-7. Pastikan bleedout tetap menghasilkan real death dan AxGraves hanya bekerja setelah kematian asli.
+1. Knock player dan pastikan warning muncul pada threshold.
+2. Biarkan sampai <=10 detik dan pastikan heartbeat berjalan.
+3. Hit player KNOCKED; default harus memotong bleedout, bukan mengurangi HP vanilla.
+4. Test lava, fire, drowning, explosion, dan VOID.
+5. Test `/giveup`; harus menuju real death.
+6. Pastikan revive masih bekerja dan membatalkan seluruh death path.
+7. Pastikan real death hanya terjadi sekali dan `PlayerDeathEvent` tetap muncul untuk AxGraves.
+
+> Upgrade dari config v0.2.0: hapus `VOID` dari `knockout.ignored-damage-causes` jika ingin environmental VOID handling v0.2.1 aktif.
 
 ## License
 

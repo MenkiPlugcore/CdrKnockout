@@ -3,9 +3,9 @@
 
   <groupId>store.cadera</groupId>
   <artifactId>CdrKnockout</artifactId>
-  <version>0.2.0</version>
+  <version>0.2.1</version>
   <name>CdrKnockout</name>
-  <description>Knockout, passive revive, and modular requirement engine for Paper servers by CADERA.</description>
+  <description>Knockout, passive revive, requirements, bleedout, and death engine for Paper servers by CADERA.</description>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>

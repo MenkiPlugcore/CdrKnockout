@@ -9,8 +9,8 @@ Reviver maksimal 1 block, wajib sneak + pegang item revive di main hand, tanpa k
 ## ✅ v0.2.0 — Requirement Engine
 Toggle item, XP level, Vault money, AuraSkills, permission; mode ALL/ANY; requirement session locking; cost processing on success.
 
-## v0.2.1 — Bleedout & Death Engine
-Advanced bleedout, warning/heartbeat, downed-damage modes, environmental handling, give-up.
+## ✅ v0.2.1 — Bleedout & Death Engine
+Warning/heartbeat, downed-damage modes, per-cause environmental handling, `/giveup`, guarded real-death queue, AxGraves-friendly `PlayerDeathEvent` pass-through.
 
 ## v0.3.0 — AxGraves Compatibility
 Regression suite untuk no-grave-on-KO, real grave on death, inventory/EXP correctness, anti double-grave.

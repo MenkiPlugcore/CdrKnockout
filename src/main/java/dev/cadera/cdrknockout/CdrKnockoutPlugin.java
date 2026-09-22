@@ -1,6 +1,7 @@
 package dev.cadera.cdrknockout;
 
 import dev.cadera.cdrknockout.command.CdrKnockoutCommand;
+import dev.cadera.cdrknockout.command.GiveUpCommand;
 import dev.cadera.cdrknockout.core.KnockoutManager;
 import dev.cadera.cdrknockout.listener.KnockoutListener;
 import dev.cadera.cdrknockout.revive.ReviveManager;
@@ -39,6 +40,12 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         }
         command.setExecutor(commandHandler);
         command.setTabCompleter(commandHandler);
+
+        PluginCommand giveUp = getCommand("giveup");
+        if (giveUp == null) {
+            throw new IllegalStateException("Command giveup is missing from plugin.yml");
+        }
+        giveUp.setExecutor(new GiveUpCommand(this, knockoutManager, messages));
 
         getLogger().info("CdrKnockout v" + getDescription().getVersion() + " enabled.");
     }

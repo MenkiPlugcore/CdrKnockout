@@ -16,6 +16,14 @@ command-blocked: '%prefix%&cKamu tidak dapat menggunakan command itu saat KNOCKE
 player-knocked: '&cKamu KNOCKED! &7Tunggu bantuan sebelum timer habis.'
 player-revived: '&aKamu berhasil direvive.'
 player-bleedout: '&4Kamu kehabisan waktu...'
+player-downed-fatal: '&4Luka lanjutan menghabisimu...'
+player-giveup: '&4Kamu menyerah dan membiarkan dirimu mati...'
+bleedout-warning: '%prefix%&cBleedout dalam &f%time% detik&c.'
+
+giveup-player-only: '%prefix%&cCommand ini hanya dapat digunakan player.'
+giveup-disabled: '%prefix%&cFitur give up sedang dinonaktifkan.'
+giveup-not-knocked: '%prefix%&eKamu hanya dapat /giveup saat sedang KNOCKED.'
+giveup-failed: '%prefix%&cGive up gagal diproses.'
 
 revive-start-reviver: '%prefix%&aMulai revive &f%target%&a. Tetap jongkok, dekat, dan pertahankan requirement.'
 revive-start-target: '%prefix%&f%reviver% &asedang mencoba merevive kamu.'
