@@ -1,5 +1,5 @@
-# CdrKnockout v0.1.1
-# Core Knockout + Passive Proximity Revive
+# CdrKnockout v0.2.0
+# Core Knockout + Passive Revive + Requirement Engine
 
 debug: false
 
@@ -78,26 +78,63 @@ knockout:
   bleedout:
     enabled: true
 
-# v0.1.1 Passive Revive
-# Tidak menggunakan klik kiri/kanan. Penolong cukup dekat, pegang item di main hand, lalu jongkok.
 revive:
   enabled: true
   max-distance: 1.0
   duration-seconds: 8.0
 
-  item:
-    enabled: true
-    material: GOLDEN_APPLE
-    amount: 1
-    # Item hanya hilang setelah revive 100% berhasil.
-    consume-on-success: true
+  # v0.2.0 Requirement Engine
+  requirements:
+    # ALL = seluruh requirement yang enabled wajib terpenuhi.
+    # ANY = cukup satu requirement enabled; requirement terpilih mengikuti any-priority.
+    mode: ALL
+
+    # Khusus mode ANY. Requirement pertama yang terpenuhi menjadi requirement sesi
+    # dan hanya cost dari requirement terpilih yang dikonsumsi saat sukses.
+    any-priority:
+      - ITEM
+      - XP_LEVEL
+      - MONEY
+      - AURASKILLS
+      - PERMISSION
+
+    # Mencegah spam pesan ketika player jongkok dekat target tetapi syarat belum terpenuhi.
+    failure-message-cooldown-ms: 2000
+
+    item:
+      enabled: true
+      material: GOLDEN_APPLE
+      amount: 1
+      consume-on-success: true
+
+    xp-level:
+      enabled: false
+      minimum-level: 10
+      consume-on-success: false
+      consume-levels: 0
+
+    # Membutuhkan Vault + economy provider jika diaktifkan.
+    money:
+      enabled: false
+      amount: 5000.0
+      withdraw-on-success: true
+
+    # Membutuhkan AuraSkills jika diaktifkan.
+    # Integrasi v0.2.0 mendukung built-in skill enum seperti FIGHTING/MINING/FARMING.
+    auraskills:
+      enabled: false
+      skill: FIGHTING
+      minimum-level: 20.0
+
+    permission:
+      enabled: false
+      node: cdrknockout.revive.special
 
   channel:
     # Revive selalu batal jika berhenti jongkok, menjauh > max-distance,
-    # mengganti/kehilangan item, mati, KO, logout, atau pindah world.
+    # requirement sesi tidak lagi terpenuhi, mati, KO, logout, atau pindah world.
     cancel-on-damage: true
     cancel-on-attack: true
-    # Default false: reviver boleh menyesuaikan posisi selama tetap <= 1 block.
     cancel-on-move: false
     move-tolerance: 0.10
 
