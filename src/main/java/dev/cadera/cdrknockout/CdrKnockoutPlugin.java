@@ -3,6 +3,7 @@ package dev.cadera.cdrknockout;
 import dev.cadera.cdrknockout.command.CdrKnockoutCommand;
 import dev.cadera.cdrknockout.command.GiveUpCommand;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.core.KnockoutPersistence;
 import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
 import dev.cadera.cdrknockout.listener.KnockoutListener;
 import dev.cadera.cdrknockout.revive.ReviveManager;
@@ -13,6 +14,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class CdrKnockoutPlugin extends JavaPlugin {
 
     private Messages messages;
+    private KnockoutPersistence persistence;
     private KnockoutManager knockoutManager;
     private ReviveManager reviveManager;
     private AxGravesCompatibility axGravesCompatibility;
@@ -24,7 +26,10 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         messages = new Messages(this);
         messages.reload();
 
-        knockoutManager = new KnockoutManager(this, messages);
+        persistence = new KnockoutPersistence(this);
+        persistence.start();
+
+        knockoutManager = new KnockoutManager(this, messages, persistence);
         reviveManager = new ReviveManager(this, knockoutManager, messages);
         knockoutManager.setReviveManager(reviveManager);
         axGravesCompatibility = new AxGravesCompatibility(this, knockoutManager);
@@ -70,11 +75,17 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         if (knockoutManager != null) {
             knockoutManager.shutdown();
         }
+        if (persistence != null) {
+            persistence.shutdown();
+        }
     }
 
     public void reloadRuntimeConfig() {
         reloadConfig();
         messages.reload();
+        if (persistence != null) {
+            persistence.reload();
+        }
         reviveManager.onReload();
         knockoutManager.onReload();
         axGravesCompatibility.reload();
