@@ -2,6 +2,7 @@ package dev.cadera.cdrknockout.revive;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.execution.ExecutionManager;
 import dev.cadera.cdrknockout.revive.requirement.RequirementEngine;
 import dev.cadera.cdrknockout.revive.requirement.RequirementResult;
 import dev.cadera.cdrknockout.util.Messages;
@@ -28,6 +29,7 @@ public final class ReviveManager {
     private final Map<UUID, ReviveSession> sessionsByTarget = new HashMap<>();
     private final Map<UUID, UUID> targetByReviver = new HashMap<>();
     private final Map<UUID, Long> lastRequirementNotice = new HashMap<>();
+    private ExecutionManager executionManager;
     private BukkitTask ticker;
 
     public ReviveManager(CdrKnockoutPlugin plugin, KnockoutManager knockoutManager, Messages messages) {
@@ -35,6 +37,10 @@ public final class ReviveManager {
         this.knockoutManager = knockoutManager;
         this.messages = messages;
         this.requirementEngine = new RequirementEngine(plugin, messages);
+    }
+
+    public void setExecutionManager(ExecutionManager executionManager) {
+        this.executionManager = executionManager;
     }
 
     public void start() {
@@ -61,15 +67,17 @@ public final class ReviveManager {
     }
 
     public boolean isTargetBeingRevived(Player player) {
-        return sessionsByTarget.containsKey(player.getUniqueId());
+        return player != null && sessionsByTarget.containsKey(player.getUniqueId());
     }
 
     public boolean isReviver(Player player) {
-        return targetByReviver.containsKey(player.getUniqueId());
+        return player != null && targetByReviver.containsKey(player.getUniqueId());
     }
 
     public void cancelTarget(Player target, boolean notify) {
-        cancelSession(target.getUniqueId(), notify);
+        if (target != null) {
+            cancelSession(target.getUniqueId(), notify);
+        }
     }
 
     public void handlePlayerUnavailable(Player player) {
@@ -117,6 +125,9 @@ public final class ReviveManager {
         double maxDistanceSquared = maxDistance * maxDistance;
         for (Player target : player.getWorld().getPlayers()) {
             if (!knockoutManager.isKnocked(target) || sessionsByTarget.containsKey(target.getUniqueId())) {
+                continue;
+            }
+            if (executionManager != null && executionManager.isTargetBeingExecuted(target)) {
                 continue;
             }
             if (target.getUniqueId().equals(player.getUniqueId())) {
@@ -169,7 +180,9 @@ public final class ReviveManager {
         }
 
         for (Player target : plugin.getServer().getOnlinePlayers()) {
-            if (!knockoutManager.isKnocked(target) || sessionsByTarget.containsKey(target.getUniqueId())) {
+            if (!knockoutManager.isKnocked(target)
+                    || sessionsByTarget.containsKey(target.getUniqueId())
+                    || (executionManager != null && executionManager.isTargetBeingExecuted(target))) {
                 continue;
             }
             EligibleReviver eligible = findEligibleReviver(target, now);
@@ -196,6 +209,12 @@ public final class ReviveManager {
                 continue;
             }
 
+            if (executionManager != null
+                    && (executionManager.isExecutor(candidate)
+                    || executionManager.isExecutionIntent(candidate, target))) {
+                continue;
+            }
+
             double distance = candidate.getLocation().distanceSquared(target.getLocation());
             if (distance > maxDistanceSquared) {
                 continue;
@@ -218,6 +237,12 @@ public final class ReviveManager {
     }
 
     private void startSession(Player target, Player reviver, RequirementResult requirements, long now) {
+        if (executionManager != null
+                && (executionManager.isTargetBeingExecuted(target)
+                || executionManager.isExecutionIntent(reviver, target))) {
+            return;
+        }
+
         double durationSeconds = Math.max(0.5D, plugin.getConfig().getDouble("revive.duration-seconds", 8.0D));
         long completesAt = now + Math.max(1L, Math.round(durationSeconds * 1000.0D));
 
@@ -247,7 +272,9 @@ public final class ReviveManager {
                 || !knockoutManager.isKnocked(target)
                 || knockoutManager.isKnocked(reviver)
                 || !target.getWorld().equals(reviver.getWorld())
-                || !reviver.isSneaking()) {
+                || !reviver.isSneaking()
+                || (executionManager != null && (executionManager.isTargetBeingExecuted(target)
+                || executionManager.isExecutor(reviver)))) {
             return RequirementResult.failure("");
         }
 
@@ -272,6 +299,11 @@ public final class ReviveManager {
     }
 
     private void completeSession(ReviveSession session, Player target, Player reviver) {
+        if (executionManager != null && executionManager.isTargetBeingExecuted(target)) {
+            cancelSession(session.targetId(), true);
+            return;
+        }
+
         RequirementResult validation = requirementEngine.validateSelected(reviver, session.selectedRequirements());
         if (!validation.passed()) {
             if (!validation.failureMessage().isBlank()) {
