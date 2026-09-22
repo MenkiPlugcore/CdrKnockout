@@ -6,8 +6,8 @@ Lethal interception, KNOCKED state, prone pose, movement/action restrictions, ef
 ## ✅ v0.1.1 — Passive Revive Core
 Reviver maksimal 1 block, wajib sneak + pegang item revive di main hand, tanpa klik, channel progress, cancel conditions, consume item hanya saat sukses.
 
-## v0.2.0 — Requirement Engine
-Toggle item, XP level, Vault money, AuraSkills, permission; mode ALL/ANY.
+## ✅ v0.2.0 — Requirement Engine
+Toggle item, XP level, Vault money, AuraSkills, permission; mode ALL/ANY; requirement session locking; cost processing on success.
 
 ## v0.2.1 — Bleedout & Death Engine
 Advanced bleedout, warning/heartbeat, downed-damage modes, environmental handling, give-up.
