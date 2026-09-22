@@ -2,9 +2,9 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v0.3.0 — AxGraves Compatibility**
+Versi saat ini: **v0.3.1 — Stability & Safety**
 
-> Status: alpha / development. Core knockout, passive proximity revive, requirement engine, advanced bleedout/death, dan compatibility guard AxGraves sudah tersedia.
+> Status: alpha / development. Core knockout, passive proximity revive, requirement engine, advanced bleedout/death, AxGraves compatibility, dan persistent recovery sudah tersedia.
 
 ## Target platform
 
@@ -46,33 +46,49 @@ Requirement tersedia: `ITEM`, `XP_LEVEL`, `MONEY`, `AURASKILLS`, dan `PERMISSION
 - Death guard mencegah multiple real-death queue.
 - Real death tetap memakai alur kematian Paper normal.
 
-## v0.3.0 AxGraves Compatibility
+## AxGraves Compatibility
 
 CdrKnockout tidak mengganti sistem grave AxGraves. AxGraves tetap menjadi pemilik inventory/EXP grave ketika `PlayerDeathEvent` benar-benar terjadi.
 
-Compatibility layer menambahkan:
+Compatibility layer:
+- `AxGraves` sebagai `softdepend`.
+- Runtime `GravePreSpawnEvent` guard.
+- Grave diblok jika player masih `KNOCKED`.
+- Duplicate grave diblok untuk satu managed-death cycle.
+- `/cdrko compat` untuk diagnostics.
 
-- `AxGraves` sebagai `softdepend`, sehingga load order lebih konsisten.
-- Runtime detection versi AxGraves.
-- Hook `GravePreSpawnEvent` tanpa compile-time dependency ke AxGraves.
-- Grave diblok jika player masih `KNOCKED` dan belum memasuki real death.
-- Duplicate `GravePreSpawnEvent` diblok untuk satu CdrKnockout-managed death cycle.
-- Tidak mengubah `PlayerDeathEvent#getDrops()`, `keepInventory`, `keepLevel`, atau dropped EXP; pengelolaan item/EXP tetap diserahkan ke AxGraves.
-- `/cdrko compat` untuk melihat status hook dan counter safety guard.
+## v0.3.1 Stability & Safety
 
-Default config:
+State KNOCKED sekarang dapat bertahan melewati logout, restart server, maupun reload plugin.
+
+- State disimpan di `plugins/CdrKnockout/knockouts.yml`.
+- KO, quit, revive, dan real death melakukan persistence flush pada transition penting.
+- Player yang relog dikembalikan ke state KNOCKED dan anchor semula.
+- `offline-time-counts: true` membuat logout tidak dapat dipakai untuk membekukan bleedout.
+- Jika timer habis ketika offline, player masuk real death setelah recovery saat login.
+- `offline-time-counts: false` tersedia jika server ingin bleedout pause selama offline.
+- Teleport KNOCKED default `BLOCK`.
+- Mode teleport `FOLLOW` tersedia jika plugin lain memang perlu memindahkan player KO; anchor ikut dipindahkan secara aman.
+- World-change safety-net mengembalikan player ke anchor jika perpindahan world lolos dari event teleport.
+- KO creation memakai guard terhadap duplicate session.
+- Revive channel tetap dibatalkan saat target masuk managed real-death path.
+
+Default:
 
 ```yaml
-compatibility:
-  axgraves:
+stability:
+  persistence:
     enabled: true
-    block-graves-while-knocked: true
-    prevent-duplicate-managed-graves: true
-    duplicate-window-ticks: 40
-    log-diagnostics: false
-```
+    autosave-ticks: 40
+    offline-time-counts: true
+    restore-anchor-on-join: true
+    join-recovery-delay-ticks: 2
+    missing-world-policy: CURRENT
 
-Jika AxGraves tidak terpasang, CdrKnockout tetap bekerja normal.
+  teleport:
+    mode: BLOCK
+    reassert-on-world-change: true
+```
 
 ## Commands
 
@@ -97,20 +113,19 @@ mvn clean package
 Output:
 
 ```text
-target/CdrKnockout-0.3.0.jar
+target/CdrKnockout-0.3.1.jar
 ```
 
-## AxGraves regression flow
+## Stability regression flow
 
-1. `/cdrko knockout <player>` -> player harus KNOCKED tanpa grave.
-2. Revive player -> tidak boleh ada grave dan inventory/EXP tetap utuh.
-3. Knock lagi lalu biarkan bleedout -> tepat satu real death dan satu grave.
-4. Uji `/giveup` -> tepat satu grave.
-5. Uji fatal downed damage / VOID -> tepat satu grave.
-6. Ambil grave dan verifikasi item + EXP sesuai config AxGraves.
-7. Jalankan `/cdrko compat` untuk memastikan status `ACTIVE` ketika AxGraves terpasang.
-
-Checklist lebih lengkap ada di `docs/AXGRAVES-COMPATIBILITY.md`.
+1. Knock player lalu logout; login lagi harus kembali KNOCKED.
+2. Knock player lalu restart server; login lagi harus recover dengan timer yang benar.
+3. Dengan `offline-time-counts: true`, tunggu sampai timer habis ketika offline; login harus menuju real death.
+4. Coba `/tp` atau teleport plugin saat KO; default harus diblok.
+5. Set `stability.teleport.mode: FOLLOW`, teleport ulang; anchor harus ikut pindah dan movement lock tetap benar.
+6. Spam lethal hit pada tick yang sama; hanya satu KO session boleh dibuat.
+7. Spam revive dari beberapa player; hanya satu revive channel target yang boleh aktif.
+8. Setelah bleedout/giveup, AxGraves harus tetap membuat tepat satu grave.
 
 ## License
 
