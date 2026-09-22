@@ -2,11 +2,12 @@ package dev.cadera.cdrknockout.revive;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.revive.requirement.RequirementEngine;
+import dev.cadera.cdrknockout.revive.requirement.RequirementResult;
 import dev.cadera.cdrknockout.util.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
@@ -23,14 +24,17 @@ public final class ReviveManager {
     private final CdrKnockoutPlugin plugin;
     private final KnockoutManager knockoutManager;
     private final Messages messages;
+    private final RequirementEngine requirementEngine;
     private final Map<UUID, ReviveSession> sessionsByTarget = new HashMap<>();
     private final Map<UUID, UUID> targetByReviver = new HashMap<>();
+    private final Map<UUID, Long> lastRequirementNotice = new HashMap<>();
     private BukkitTask ticker;
 
     public ReviveManager(CdrKnockoutPlugin plugin, KnockoutManager knockoutManager, Messages messages) {
         this.plugin = plugin;
         this.knockoutManager = knockoutManager;
         this.messages = messages;
+        this.requirementEngine = new RequirementEngine(plugin, messages);
     }
 
     public void start() {
@@ -46,10 +50,13 @@ public final class ReviveManager {
             ticker = null;
         }
         cancelAll(false);
+        lastRequirementNotice.clear();
     }
 
     public void onReload() {
         cancelAll(true);
+        lastRequirementNotice.clear();
+        requirementEngine.reload();
         debug("Revive configuration reloaded; active channels reset.");
     }
 
@@ -71,6 +78,7 @@ public final class ReviveManager {
             cancelSession(targetId, true);
         }
         cancelSession(player.getUniqueId(), false);
+        lastRequirementNotice.remove(player.getUniqueId());
     }
 
     public void onPlayerDamaged(Player player) {
@@ -95,9 +103,9 @@ public final class ReviveManager {
 
     public boolean shouldBlockReviveItemUse(Player player) {
         if (!plugin.getConfig().getBoolean("revive.enabled", true)
-                || !plugin.getConfig().getBoolean("revive.item.enabled", true)
+                || !requirementEngine.isItemRequirementEnabled()
                 || !player.isSneaking()
-                || !matchesRequiredItem(player.getInventory().getItemInMainHand())) {
+                || !requirementEngine.matchesRequiredItem(player.getInventory().getItemInMainHand())) {
             return false;
         }
 
@@ -122,13 +130,7 @@ public final class ReviveManager {
     }
 
     public boolean matchesRequiredItem(ItemStack stack) {
-        if (!plugin.getConfig().getBoolean("revive.item.enabled", true)) {
-            return true;
-        }
-        if (stack == null || stack.getType().isAir()) {
-            return false;
-        }
-        return stack.getType() == requiredMaterial() && stack.getAmount() >= requiredAmount();
+        return requirementEngine.matchesRequiredItem(stack);
     }
 
     private void tick() {
@@ -149,7 +151,11 @@ public final class ReviveManager {
 
             Player target = plugin.getServer().getPlayer(session.targetId());
             Player reviver = plugin.getServer().getPlayer(session.reviverId());
-            if (!isSessionValid(session, target, reviver)) {
+            RequirementResult validation = validateSession(session, target, reviver);
+            if (!validation.passed()) {
+                if (reviver != null && reviver.isOnline() && !validation.failureMessage().isBlank()) {
+                    reviver.sendMessage(validation.failureMessage());
+                }
                 cancelSession(targetId, true);
                 continue;
             }
@@ -166,15 +172,16 @@ public final class ReviveManager {
             if (!knockoutManager.isKnocked(target) || sessionsByTarget.containsKey(target.getUniqueId())) {
                 continue;
             }
-            Player reviver = findEligibleReviver(target);
-            if (reviver != null) {
-                startSession(target, reviver, now);
+            EligibleReviver eligible = findEligibleReviver(target, now);
+            if (eligible != null) {
+                startSession(target, eligible.player(), eligible.requirements(), now);
             }
         }
     }
 
-    private Player findEligibleReviver(Player target) {
+    private EligibleReviver findEligibleReviver(Player target, long now) {
         Player nearest = null;
+        RequirementResult nearestRequirements = null;
         double nearestDistance = Double.MAX_VALUE;
         double maxDistance = maxDistance();
         double maxDistanceSquared = maxDistance * maxDistance;
@@ -185,21 +192,32 @@ public final class ReviveManager {
                     || knockoutManager.isKnocked(candidate)
                     || candidate.isDead()
                     || !candidate.isOnline()
-                    || !candidate.isSneaking()
-                    || !matchesRequiredItem(candidate.getInventory().getItemInMainHand())) {
+                    || !candidate.isSneaking()) {
                 continue;
             }
 
             double distance = candidate.getLocation().distanceSquared(target.getLocation());
-            if (distance <= maxDistanceSquared && distance < nearestDistance) {
+            if (distance > maxDistanceSquared) {
+                continue;
+            }
+
+            RequirementResult requirements = requirementEngine.evaluate(candidate);
+            if (!requirements.passed()) {
+                notifyRequirementFailure(candidate, requirements, now);
+                continue;
+            }
+
+            if (distance < nearestDistance) {
                 nearest = candidate;
+                nearestRequirements = requirements;
                 nearestDistance = distance;
             }
         }
-        return nearest;
+
+        return nearest == null ? null : new EligibleReviver(nearest, nearestRequirements);
     }
 
-    private void startSession(Player target, Player reviver, long now) {
+    private void startSession(Player target, Player reviver, RequirementResult requirements, long now) {
         double durationSeconds = Math.max(0.5D, plugin.getConfig().getDouble("revive.duration-seconds", 8.0D));
         long completesAt = now + Math.max(1L, Math.round(durationSeconds * 1000.0D));
 
@@ -208,66 +226,97 @@ public final class ReviveManager {
                 reviver.getUniqueId(),
                 now,
                 completesAt,
-                reviver.getLocation()
+                reviver.getLocation(),
+                requirements.selected()
         );
         sessionsByTarget.put(target.getUniqueId(), session);
         targetByReviver.put(reviver.getUniqueId(), target.getUniqueId());
+        lastRequirementNotice.remove(reviver.getUniqueId());
 
         reviver.sendMessage(messages.format("revive-start-reviver", "%target%", target.getName()));
         target.sendMessage(messages.format("revive-start-target", "%reviver%", reviver.getName()));
         sendProgress(session, target, reviver, now);
-        debug("Revive started: " + reviver.getName() + " -> " + target.getName());
+        debug("Revive started: " + reviver.getName() + " -> " + target.getName()
+                + " requirements=" + session.selectedRequirements());
     }
 
-    private boolean isSessionValid(ReviveSession session, Player target, Player reviver) {
+    private RequirementResult validateSession(ReviveSession session, Player target, Player reviver) {
         if (target == null || reviver == null
                 || !target.isOnline() || !reviver.isOnline()
                 || target.isDead() || reviver.isDead()
                 || !knockoutManager.isKnocked(target)
                 || knockoutManager.isKnocked(reviver)
                 || !target.getWorld().equals(reviver.getWorld())
-                || !reviver.isSneaking()
-                || !matchesRequiredItem(reviver.getInventory().getItemInMainHand())) {
-            return false;
+                || !reviver.isSneaking()) {
+            return RequirementResult.failure("");
         }
 
         double maxDistance = maxDistance();
         if (target.getLocation().distanceSquared(reviver.getLocation()) > maxDistance * maxDistance) {
-            return false;
+            return RequirementResult.failure("");
         }
 
         if (plugin.getConfig().getBoolean("revive.channel.cancel-on-move", false)) {
             Location start = session.reviverStartLocation();
             Location current = reviver.getLocation();
             if (!start.getWorld().equals(current.getWorld())) {
-                return false;
+                return RequirementResult.failure("");
             }
             double tolerance = Math.max(0.0D, plugin.getConfig().getDouble("revive.channel.move-tolerance", 0.10D));
             if (start.distanceSquared(current) > tolerance * tolerance) {
-                return false;
+                return RequirementResult.failure("");
             }
         }
-        return true;
+
+        return requirementEngine.validateSelected(reviver, session.selectedRequirements());
     }
 
     private void completeSession(ReviveSession session, Player target, Player reviver) {
+        RequirementResult validation = requirementEngine.validateSelected(reviver, session.selectedRequirements());
+        if (!validation.passed()) {
+            if (!validation.failureMessage().isBlank()) {
+                reviver.sendMessage(validation.failureMessage());
+            }
+            cancelSession(session.targetId(), true);
+            return;
+        }
+
+        if (!requirementEngine.commit(reviver, session.selectedRequirements())) {
+            reviver.sendMessage(messages.format("revive-requirement-payment-failed"));
+            cancelSession(session.targetId(), true);
+            return;
+        }
+
         removeSession(session);
 
         double health = Math.max(0.5D, plugin.getConfig().getDouble("revive.result.health", 6.0D));
         int resistanceSeconds = Math.max(0, plugin.getConfig().getInt("revive.result.resistance-seconds", 3));
         if (!knockoutManager.revive(target, health, resistanceSeconds)) {
+            reviver.sendMessage(messages.format("revive-failed-internal"));
             return;
-        }
-
-        if (plugin.getConfig().getBoolean("revive.item.enabled", true)
-                && plugin.getConfig().getBoolean("revive.item.consume-on-success", true)) {
-            consumeRequiredItem(reviver);
         }
 
         reviver.sendMessage(messages.format("revive-success-reviver", "%target%", target.getName()));
         sendConfiguredActionBar(reviver, "revive.display.actionbar.success-reviver", "&a&lREVIVE SUCCESS");
         sendConfiguredActionBar(target, "revive.display.actionbar.success-target", "&a&lREVIVED");
-        debug("Revive completed: " + reviver.getName() + " -> " + target.getName());
+        debug("Revive completed: " + reviver.getName() + " -> " + target.getName()
+                + " requirements=" + session.selectedRequirements());
+    }
+
+    private void notifyRequirementFailure(Player player, RequirementResult result, long now) {
+        if (result.failureMessage().isBlank()) {
+            return;
+        }
+        long cooldown = Math.max(500L, plugin.getConfig().getLong(
+                "revive.requirements.failure-message-cooldown-ms",
+                2000L
+        ));
+        long last = lastRequirementNotice.getOrDefault(player.getUniqueId(), 0L);
+        if (now - last < cooldown) {
+            return;
+        }
+        lastRequirementNotice.put(player.getUniqueId(), now);
+        player.sendMessage(result.failureMessage());
     }
 
     private void cancelSession(UUID targetId, boolean notify) {
@@ -302,20 +351,6 @@ public final class ReviveManager {
     private void removeSession(ReviveSession session) {
         sessionsByTarget.remove(session.targetId());
         targetByReviver.remove(session.reviverId(), session.targetId());
-    }
-
-    private void consumeRequiredItem(Player reviver) {
-        ItemStack stack = reviver.getInventory().getItemInMainHand();
-        int amount = requiredAmount();
-        if (!matchesRequiredItem(stack)) {
-            return;
-        }
-        int remaining = stack.getAmount() - amount;
-        if (remaining <= 0) {
-            reviver.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
-        } else {
-            stack.setAmount(remaining);
-        }
     }
 
     private void sendProgress(ReviveSession session, Player target, Player reviver, long now) {
@@ -369,19 +404,12 @@ public final class ReviveManager {
         return Math.max(0.1D, plugin.getConfig().getDouble("revive.max-distance", 1.0D));
     }
 
-    private int requiredAmount() {
-        return Math.max(1, plugin.getConfig().getInt("revive.item.amount", 1));
-    }
-
-    private Material requiredMaterial() {
-        String configured = plugin.getConfig().getString("revive.item.material", "GOLDEN_APPLE");
-        Material material = configured == null ? null : Material.matchMaterial(configured);
-        return material == null ? Material.GOLDEN_APPLE : material;
-    }
-
     private void debug(String message) {
         if (plugin.getConfig().getBoolean("debug", false)) {
             plugin.getLogger().info("[DEBUG] " + message);
         }
+    }
+
+    private record EligibleReviver(Player player, RequirementResult requirements) {
     }
 }
