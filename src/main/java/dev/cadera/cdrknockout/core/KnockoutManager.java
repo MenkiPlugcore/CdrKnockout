@@ -11,6 +11,7 @@ import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -32,14 +33,21 @@ public final class KnockoutManager {
 
     private final CdrKnockoutPlugin plugin;
     private final Messages messages;
+    private final KnockoutPersistence persistence;
     private final Map<UUID, KnockoutSession> sessions = new HashMap<>();
     private final Set<UUID> deathInProgress = new HashSet<>();
+    private final Set<UUID> internalTeleports = new HashSet<>();
     private ReviveManager reviveManager;
     private BukkitTask ticker;
 
-    public KnockoutManager(CdrKnockoutPlugin plugin, Messages messages) {
+    public KnockoutManager(
+            CdrKnockoutPlugin plugin,
+            Messages messages,
+            KnockoutPersistence persistence
+    ) {
         this.plugin = plugin;
         this.messages = messages;
+        this.persistence = persistence;
     }
 
     public void setReviveManager(ReviveManager reviveManager) {
@@ -51,6 +59,16 @@ public final class KnockoutManager {
             ticker.cancel();
         }
         ticker = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 1L, 5L);
+
+        long delay = Math.max(1L, plugin.getConfig().getLong(
+                "stability.persistence.join-recovery-delay-ticks",
+                2L
+        ));
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                recoverPlayer(player);
+            }
+        }, delay);
     }
 
     public void shutdown() {
@@ -58,35 +76,121 @@ public final class KnockoutManager {
             ticker.cancel();
             ticker = null;
         }
+
+        long now = System.currentTimeMillis();
         for (UUID uuid : new ArrayList<>(sessions.keySet())) {
+            KnockoutSession session = sessions.get(uuid);
+            if (session == null) {
+                continue;
+            }
             Player player = plugin.getServer().getPlayer(uuid);
+            session.markOffline(now);
+            persistence.track(session);
             if (player != null) {
-                restorePlayer(player, sessions.get(uuid));
+                restorePlayer(player, session);
             }
         }
+
         sessions.clear();
         deathInProgress.clear();
+        internalTeleports.clear();
+        persistence.flushNow();
     }
 
     public void onReload() {
-        debug("Runtime configuration reloaded. Active sessions=" + sessions.size());
+        if (persistence.enabled()) {
+            for (KnockoutSession session : sessions.values()) {
+                persistence.track(session);
+            }
+        }
+        debug("Runtime configuration reloaded. Active sessions=" + sessions.size()
+                + ", persisted=" + persistence.storedCount());
     }
 
     public boolean isKnocked(Player player) {
-        return sessions.containsKey(player.getUniqueId());
+        return player != null && sessions.containsKey(player.getUniqueId());
     }
 
     public boolean isDeathInProgress(Player player) {
-        return deathInProgress.contains(player.getUniqueId());
+        return player != null && deathInProgress.contains(player.getUniqueId());
+    }
+
+    public boolean hasPersistedKnockout(Player player) {
+        return player != null && persistence.has(player.getUniqueId());
     }
 
     public KnockoutSession getSession(Player player) {
-        return sessions.get(player.getUniqueId());
+        return player == null ? null : sessions.get(player.getUniqueId());
     }
 
     public long getRemainingSeconds(Player player) {
         KnockoutSession session = getSession(player);
         return session == null ? 0L : session.remainingSeconds(System.currentTimeMillis());
+    }
+
+    public void ensureRecovered(Player player) {
+        if (player != null && !isKnocked(player) && persistence.has(player.getUniqueId())) {
+            recoverPlayer(player);
+        }
+    }
+
+    public boolean recoverPlayer(Player player) {
+        if (player == null || !player.isOnline() || isKnocked(player) || !persistence.enabled()) {
+            return false;
+        }
+
+        KnockoutPersistence.StoredSession stored = persistence.get(player.getUniqueId());
+        if (stored == null) {
+            return false;
+        }
+
+        Location anchor = resolveRecoveryAnchor(player, stored);
+        if (anchor == null) {
+            persistence.remove(player.getUniqueId());
+            persistence.flushNow();
+            player.sendMessage(messages.format("recovery-cleared-missing-world"));
+            plugin.getLogger().warning("Cleared persisted knockout for " + player.getName()
+                    + " because recovery world '" + stored.worldName() + "' is unavailable.");
+            return false;
+        }
+
+        KnockoutSession session = stored.toSession(anchor);
+        long now = System.currentTimeMillis();
+        boolean offlineTimeCounts = plugin.getConfig().getBoolean(
+                "stability.persistence.offline-time-counts",
+                true
+        );
+        session.resume(now, offlineTimeCounts);
+        sessions.put(player.getUniqueId(), session);
+        deathInProgress.remove(player.getUniqueId());
+
+        if (plugin.getConfig().getBoolean("stability.persistence.restore-anchor-on-join", true)) {
+            safeTeleport(player, anchor);
+        } else {
+            session.updateAnchor(player.getLocation());
+        }
+
+        applyRecoveredState(player, session);
+        persistence.track(session);
+        persistence.flushNow();
+
+        if (session.expiresAtMillis() != Long.MAX_VALUE && now >= session.expiresAtMillis()) {
+            player.sendMessage(messages.format("recovery-expired"));
+            plugin.getServer().getScheduler().runTask(plugin,
+                    () -> queueRealDeath(player, "player-bleedout", "RECOVERY_EXPIRED"));
+        } else {
+            player.sendMessage(messages.format(
+                    "recovery-restored",
+                    "%time%",
+                    session.remainingSeconds(now) == Long.MAX_VALUE
+                            ? "∞"
+                            : Long.toString(session.remainingSeconds(now))
+            ));
+        }
+
+        debug("Recovered persisted knockout: " + player.getName()
+                + " remaining=" + session.remainingSeconds(now));
+        return true;
     }
 
     public boolean shouldInterceptLethalDamage(Player player, EntityDamageEvent event) {
@@ -95,6 +199,9 @@ public final class KnockoutManager {
             return false;
         }
         if (isKnocked(player) || isDeathInProgress(player) || player.isDead()) {
+            return false;
+        }
+        if (persistence.has(player.getUniqueId())) {
             return false;
         }
         if (player.hasPermission("cdrknockout.bypass")) {
@@ -118,7 +225,8 @@ public final class KnockoutManager {
     }
 
     public boolean knockout(Player player, EntityDamageEvent.DamageCause cause, boolean force) {
-        if (isKnocked(player) || isDeathInProgress(player)) {
+        if (player == null || isKnocked(player) || isDeathInProgress(player)
+                || persistence.has(player.getUniqueId())) {
             return false;
         }
         if (!force && !isWorldEnabled(player.getWorld())) {
@@ -146,7 +254,15 @@ public final class KnockoutManager {
                 previousEffects,
                 managedEffects
         );
-        sessions.put(player.getUniqueId(), session);
+
+        KnockoutSession previous = sessions.putIfAbsent(player.getUniqueId(), session);
+        if (previous != null) {
+            restorePlayer(player, session);
+            return false;
+        }
+
+        persistence.track(session);
+        persistence.flushNow();
 
         double minimumHealth = Math.max(0.5D, plugin.getConfig().getDouble("knockout.minimum-health", 1.0D));
         minimumHealth = Math.min(minimumHealth, player.getMaxHealth());
@@ -188,6 +304,8 @@ public final class KnockoutManager {
                     return;
                 }
                 long remaining = session.reduceRemainingMillis(seconds * 1000L, System.currentTimeMillis());
+                persistence.track(session);
+
                 if (plugin.getConfig().getBoolean("knockout.bleedout.downed-damage.display-penalty-actionbar", true)) {
                     String text = plugin.getConfig().getString(
                             "knockout.bleedout.downed-damage.penalty-actionbar",
@@ -199,6 +317,7 @@ public final class KnockoutManager {
                         player.sendActionBar(LEGACY.deserialize(text));
                     }
                 }
+
                 debug("Downed damage reduced timer: " + player.getName() + " cause=" + event.getCause()
                         + " seconds=" + seconds + " remaining=" + remaining);
                 if (remaining <= 0L) {
@@ -215,7 +334,7 @@ public final class KnockoutManager {
     }
 
     public boolean revive(Player player, double health, int resistanceSeconds) {
-        if (deathInProgress.contains(player.getUniqueId())) {
+        if (player == null || deathInProgress.contains(player.getUniqueId())) {
             return false;
         }
         if (reviveManager != null) {
@@ -226,6 +345,9 @@ public final class KnockoutManager {
         if (session == null) {
             return false;
         }
+
+        persistence.remove(player.getUniqueId());
+        persistence.flushNow();
 
         restorePlayer(player, session);
         player.setHealth(Math.min(player.getMaxHealth(), Math.max(0.5D, health)));
@@ -250,6 +372,9 @@ public final class KnockoutManager {
     }
 
     private boolean queueRealDeath(Player player, String messageKey, String reason) {
+        if (player == null) {
+            return false;
+        }
         UUID uuid = player.getUniqueId();
         if (!sessions.containsKey(uuid) || !deathInProgress.add(uuid)) {
             return false;
@@ -269,10 +394,18 @@ public final class KnockoutManager {
         KnockoutSession session = sessions.remove(uuid);
         if (player == null || !player.isOnline() || session == null) {
             deathInProgress.remove(uuid);
+            if (session != null) {
+                session.markOffline(System.currentTimeMillis());
+                persistence.track(session);
+                persistence.flushNow();
+            }
             return;
         }
 
         restorePlayer(player, session);
+        persistence.remove(uuid);
+        persistence.flushNow();
+
         if (messageKey != null && !messageKey.isBlank()) {
             player.sendMessage(messages.format(messageKey));
         }
@@ -286,25 +419,47 @@ public final class KnockoutManager {
     }
 
     public void cleanupExternalDeath(Player player) {
-        deathInProgress.remove(player.getUniqueId());
+        if (player == null) {
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        deathInProgress.remove(uuid);
         if (reviveManager != null) {
             reviveManager.cancelTarget(player, false);
         }
-        KnockoutSession session = sessions.remove(player.getUniqueId());
+        KnockoutSession session = sessions.remove(uuid);
         if (session != null) {
             restorePlayer(player, session);
         }
+        persistence.remove(uuid);
     }
 
     public void cleanupQuit(Player player) {
-        deathInProgress.remove(player.getUniqueId());
+        if (player == null) {
+            return;
+        }
+
+        UUID uuid = player.getUniqueId();
+        deathInProgress.remove(uuid);
         if (reviveManager != null) {
             reviveManager.cancelTarget(player, false);
         }
-        KnockoutSession session = sessions.remove(player.getUniqueId());
-        if (session != null) {
-            restorePlayer(player, session);
-            debug("Session cleared on quit for " + player.getName() + " (persistence arrives in v0.3.1).");
+
+        KnockoutSession session = sessions.remove(uuid);
+        if (session == null) {
+            return;
+        }
+
+        restorePlayer(player, session);
+
+        if (persistence.enabled()) {
+            session.markOffline(System.currentTimeMillis());
+            persistence.track(session);
+            persistence.flushNow();
+            debug("Persisted KNOCKED session on quit for " + player.getName());
+        } else {
+            persistence.remove(uuid);
+            debug("Session cleared on quit for " + player.getName() + " because persistence is disabled.");
         }
     }
 
@@ -347,6 +502,77 @@ public final class KnockoutManager {
         };
     }
 
+    public boolean isInternalTeleport(Player player) {
+        return player != null && internalTeleports.contains(player.getUniqueId());
+    }
+
+    public boolean handleTeleportAttempt(
+            Player player,
+            Location destination,
+            PlayerTeleportEvent.TeleportCause cause
+    ) {
+        if (player == null || destination == null || !isKnocked(player) || isInternalTeleport(player)) {
+            return false;
+        }
+
+        KnockoutSession session = getSession(player);
+        if (session == null) {
+            return false;
+        }
+
+        if (!restriction("teleport", true)) {
+            session.updateAnchor(destination);
+            persistence.track(session);
+            return false;
+        }
+
+        String mode = plugin.getConfig().getString("stability.teleport.mode", "BLOCK");
+        if (mode != null && mode.equalsIgnoreCase("FOLLOW")) {
+            session.updateAnchor(destination);
+            persistence.track(session);
+            debug("Following allowed teleport for KNOCKED player " + player.getName()
+                    + " cause=" + cause);
+            return false;
+        }
+
+        debug("Blocked teleport for KNOCKED player " + player.getName() + " cause=" + cause);
+        return true;
+    }
+
+    public void handleUnexpectedWorldChange(Player player) {
+        if (player == null || !isKnocked(player)) {
+            return;
+        }
+
+        KnockoutSession session = getSession(player);
+        if (session == null) {
+            return;
+        }
+
+        Location anchor = session.anchor();
+        if (anchor.getWorld() == null || anchor.getWorld().equals(player.getWorld())) {
+            return;
+        }
+
+        String mode = plugin.getConfig().getString("stability.teleport.mode", "BLOCK");
+        if (!restriction("teleport", true) || (mode != null && mode.equalsIgnoreCase("FOLLOW"))) {
+            session.updateAnchor(player.getLocation());
+            persistence.track(session);
+            return;
+        }
+
+        if (!plugin.getConfig().getBoolean("stability.teleport.reassert-on-world-change", true)) {
+            return;
+        }
+
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline() && isKnocked(player)) {
+                safeTeleport(player, session.anchor());
+                player.sendMessage(messages.format("teleport-blocked"));
+            }
+        });
+    }
+
     private void tick() {
         long now = System.currentTimeMillis();
         for (UUID uuid : new ArrayList<>(sessions.keySet())) {
@@ -358,6 +584,8 @@ public final class KnockoutManager {
             Player player = plugin.getServer().getPlayer(uuid);
             if (player == null || !player.isOnline()) {
                 sessions.remove(uuid);
+                session.markOffline(now);
+                persistence.track(session);
                 continue;
             }
             if (player.isDead()) {
@@ -516,6 +744,47 @@ public final class KnockoutManager {
         }
     }
 
+    private void applyRecoveredState(Player player, KnockoutSession session) {
+        for (PotionEffectType type : session.managedEffects()) {
+            player.removePotionEffect(type);
+            String configName = configName(type);
+            if (configName == null) {
+                continue;
+            }
+            String base = "knockout.effects." + configName;
+            if (!plugin.getConfig().getBoolean(base + ".enabled", true)) {
+                continue;
+            }
+            int amplifier = Math.max(0, plugin.getConfig().getInt(base + ".amplifier", 0));
+            player.addPotionEffect(new PotionEffect(type, Integer.MAX_VALUE, amplifier, false, false, true), true);
+        }
+
+        double minimumHealth = Math.max(0.5D, plugin.getConfig().getDouble("knockout.minimum-health", 1.0D));
+        player.setHealth(Math.min(player.getMaxHealth(), minimumHealth));
+        player.setAbsorptionAmount(0.0D);
+        player.closeInventory();
+        player.setSprinting(false);
+        player.setGliding(false);
+        player.setVelocity(new Vector(0, 0, 0));
+        enforcePose(player);
+    }
+
+    private String configName(PotionEffectType type) {
+        if (type.equals(PotionEffectType.BLINDNESS)) {
+            return "blindness";
+        }
+        if (type.equals(PotionEffectType.WEAKNESS)) {
+            return "weakness";
+        }
+        if (type.equals(PotionEffectType.SLOWNESS)) {
+            return "slowness";
+        }
+        if (type.equals(PotionEffectType.DARKNESS)) {
+            return "darkness";
+        }
+        return null;
+    }
+
     private void restorePlayer(Player player, KnockoutSession session) {
         for (PotionEffectType type : session.managedEffects()) {
             player.removePotionEffect(type);
@@ -548,6 +817,44 @@ public final class KnockoutManager {
         }
         int amplifier = Math.max(0, plugin.getConfig().getInt(base + ".amplifier", 0));
         player.addPotionEffect(new PotionEffect(type, Integer.MAX_VALUE, amplifier, false, false, true), true);
+    }
+
+    private Location resolveRecoveryAnchor(Player player, KnockoutPersistence.StoredSession stored) {
+        World world = stored.worldName().isBlank() ? null : plugin.getServer().getWorld(stored.worldName());
+        if (world != null) {
+            return new Location(
+                    world,
+                    stored.x(),
+                    stored.y(),
+                    stored.z(),
+                    stored.yaw(),
+                    stored.pitch()
+            );
+        }
+
+        String policy = plugin.getConfig().getString(
+                "stability.persistence.missing-world-policy",
+                "CURRENT"
+        );
+        if (policy != null && policy.equalsIgnoreCase("CLEAR")) {
+            return null;
+        }
+
+        return player.getLocation();
+    }
+
+    private void safeTeleport(Player player, Location destination) {
+        if (destination == null || destination.getWorld() == null || !player.isOnline()) {
+            return;
+        }
+
+        UUID uuid = player.getUniqueId();
+        internalTeleports.add(uuid);
+        try {
+            player.teleport(destination, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        } finally {
+            internalTeleports.remove(uuid);
+        }
     }
 
     private boolean isIgnoredGameMode(GameMode gameMode) {
