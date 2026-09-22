@@ -3,6 +3,7 @@ package dev.cadera.cdrknockout;
 import dev.cadera.cdrknockout.command.CdrKnockoutCommand;
 import dev.cadera.cdrknockout.command.GiveUpCommand;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
 import dev.cadera.cdrknockout.listener.KnockoutListener;
 import dev.cadera.cdrknockout.revive.ReviveManager;
 import dev.cadera.cdrknockout.util.Messages;
@@ -14,6 +15,7 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
     private Messages messages;
     private KnockoutManager knockoutManager;
     private ReviveManager reviveManager;
+    private AxGravesCompatibility axGravesCompatibility;
 
     @Override
     public void onEnable() {
@@ -25,15 +27,22 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         knockoutManager = new KnockoutManager(this, messages);
         reviveManager = new ReviveManager(this, knockoutManager, messages);
         knockoutManager.setReviveManager(reviveManager);
+        axGravesCompatibility = new AxGravesCompatibility(this, knockoutManager);
 
         knockoutManager.start();
         reviveManager.start();
+        axGravesCompatibility.start();
 
         getServer().getPluginManager().registerEvents(
                 new KnockoutListener(this, knockoutManager, reviveManager, messages), this
         );
 
-        CdrKnockoutCommand commandHandler = new CdrKnockoutCommand(this, knockoutManager, messages);
+        CdrKnockoutCommand commandHandler = new CdrKnockoutCommand(
+                this,
+                knockoutManager,
+                messages,
+                axGravesCompatibility
+        );
         PluginCommand command = getCommand("cdrko");
         if (command == null) {
             throw new IllegalStateException("Command cdrko is missing from plugin.yml");
@@ -52,6 +61,9 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (axGravesCompatibility != null) {
+            axGravesCompatibility.shutdown();
+        }
         if (reviveManager != null) {
             reviveManager.shutdown();
         }
@@ -65,5 +77,6 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         messages.reload();
         reviveManager.onReload();
         knockoutManager.onReload();
+        axGravesCompatibility.reload();
     }
 }
