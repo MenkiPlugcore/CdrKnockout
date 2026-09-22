@@ -1,5 +1,6 @@
-# CdrKnockout v0.3.0
-# Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death + AxGraves Compatibility
+# CdrKnockout v0.3.1
+# Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death
+# + AxGraves Compatibility + Stability & Safety
 
 debug: false
 
@@ -200,6 +201,35 @@ revive:
       success-reviver: '&a&lREVIVE SUCCESS'
       success-target: '&a&lREVIVED'
       cancelled: '&c&lREVIVE INTERRUPTED'
+
+# v0.3.1 Stability & Safety
+stability:
+  persistence:
+    # Jika aktif, status KNOCKED disimpan ke plugins/CdrKnockout/knockouts.yml.
+    enabled: true
+
+    # Autosave safety-net. State penting juga langsung di-flush saat KO, quit, revive, dan real death.
+    autosave-ticks: 40
+
+    # true  = timer bleedout tetap berjalan saat player offline/server mati.
+    # false = timer dipause selama player offline/server mati.
+    offline-time-counts: true
+
+    # Saat relog/restart, player dikembalikan ke titik KO sebelum state diterapkan lagi.
+    restore-anchor-on-join: true
+    join-recovery-delay-ticks: 2
+
+    # CURRENT = jika world anchor belum tersedia, recovery memakai lokasi login sekarang.
+    # CLEAR   = batalkan state tersimpan jika world anchor tidak ditemukan.
+    missing-world-policy: CURRENT
+
+  teleport:
+    # BLOCK  = teleport player KNOCKED dibatalkan dan anchor tetap.
+    # FOLLOW = teleport diizinkan dan titik lock/anchor ikut dipindahkan ke tujuan.
+    mode: BLOCK
+
+    # Safety-net bila plugin lain berhasil memindahkan world walaupun teleport seharusnya diblok.
+    reassert-on-world-change: true
 
 # v0.3.0 AxGraves compatibility.
 # Integrasi ini tidak mengambil alih inventory/EXP. AxGraves tetap menerima PlayerDeathEvent normal.
