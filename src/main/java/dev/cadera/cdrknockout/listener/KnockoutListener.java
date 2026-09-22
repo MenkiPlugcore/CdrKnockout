@@ -2,6 +2,7 @@ package dev.cadera.cdrknockout.listener;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.execution.ExecutionManager;
 import dev.cadera.cdrknockout.revive.ReviveManager;
 import dev.cadera.cdrknockout.util.Messages;
 import org.bukkit.Location;
@@ -38,17 +39,20 @@ public final class KnockoutListener implements Listener {
     private final CdrKnockoutPlugin plugin;
     private final KnockoutManager manager;
     private final ReviveManager reviveManager;
+    private final ExecutionManager executionManager;
     private final Messages messages;
 
     public KnockoutListener(
             CdrKnockoutPlugin plugin,
             KnockoutManager manager,
             ReviveManager reviveManager,
+            ExecutionManager executionManager,
             Messages messages
     ) {
         this.plugin = plugin;
         this.manager = manager;
         this.reviveManager = reviveManager;
+        this.executionManager = executionManager;
         this.messages = messages;
     }
 
@@ -60,6 +64,7 @@ public final class KnockoutListener implements Listener {
 
         manager.ensureRecovered(player);
         reviveManager.onPlayerDamaged(player);
+        executionManager.onPlayerDamaged(player);
 
         if (manager.isKnocked(player)) {
             manager.handleDownedDamage(player, event);
@@ -77,6 +82,7 @@ public final class KnockoutListener implements Listener {
         if (event.getDamager() instanceof Player player) {
             manager.ensureRecovered(player);
             reviveManager.onReviverAttack(player);
+            executionManager.onExecutorAttack(player);
             if (manager.isKnocked(player) && manager.restriction("attack", true)) {
                 event.setCancelled(true);
             }
@@ -258,12 +264,14 @@ public final class KnockoutListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent event) {
+        executionManager.handlePlayerUnavailable(event.getEntity());
         reviveManager.handlePlayerUnavailable(event.getEntity());
         manager.cleanupExternalDeath(event.getEntity());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
+        executionManager.handlePlayerUnavailable(event.getPlayer());
         reviveManager.handlePlayerUnavailable(event.getPlayer());
         manager.cleanupQuit(event.getPlayer());
     }
