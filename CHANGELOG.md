@@ -2,6 +2,26 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [0.4.0] - 2026-09-22
+
+### Added
+- Passive Execution System untuk menghabisi player `KNOCKED` tanpa klik kiri/kanan.
+- Default execution flow: maksimal 1 block + sneak + sword di main hand selama 3 detik.
+- `ExecutionSession` dan `ExecutionManager` sebagai engine terpisah dari revive/pose.
+- Configurable execution duration, distance, sneak requirement, permission, allowed materials, dan cancel conditions.
+- ActionBar progress untuk executor dan target.
+- Permission `cdrknockout.execute`.
+- Execution item whitelist default seluruh vanilla sword.
+- Dokumentasi `docs/EXECUTION-SYSTEM.md`.
+
+### Safety
+- Satu target hanya dapat memiliki satu execution session.
+- Satu executor hanya dapat mengeksekusi satu target pada satu waktu.
+- Revive dan execution dibuat mutual-exclusive.
+- Execution intent mengambil prioritas ketika player memegang execution item sehingga requirement revive mode `ANY` tidak salah memilih executor sebagai reviver.
+- Execution dibatalkan ketika executor/target tidak valid, berhenti sneak, keluar radius, mengganti item, logout, mati/KO, atau sesuai cancel config.
+- Execution selesai melalui managed real-death path agar `PlayerDeathEvent` tetap normal dan AxGraves dapat membuat grave.
+
 ## [0.3.1] - 2026-09-22
 
 ### Added
