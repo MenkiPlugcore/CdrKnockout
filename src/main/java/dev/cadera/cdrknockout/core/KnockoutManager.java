@@ -1,6 +1,7 @@
 package dev.cadera.cdrknockout.core;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
+import dev.cadera.cdrknockout.revive.ReviveManager;
 import dev.cadera.cdrknockout.util.Messages;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.GameMode;
@@ -32,11 +33,16 @@ public final class KnockoutManager {
     private final CdrKnockoutPlugin plugin;
     private final Messages messages;
     private final Map<UUID, KnockoutSession> sessions = new HashMap<>();
+    private ReviveManager reviveManager;
     private BukkitTask ticker;
 
     public KnockoutManager(CdrKnockoutPlugin plugin, Messages messages) {
         this.plugin = plugin;
         this.messages = messages;
+    }
+
+    public void setReviveManager(ReviveManager reviveManager) {
+        this.reviveManager = reviveManager;
     }
 
     public void start() {
@@ -160,16 +166,24 @@ public final class KnockoutManager {
     }
 
     public boolean revive(Player player) {
+        double configuredHealth = Math.max(0.5D, plugin.getConfig().getDouble("admin-revive.health", 6.0D));
+        int resistanceSeconds = Math.max(0, plugin.getConfig().getInt("admin-revive.resistance-seconds", 3));
+        return revive(player, configuredHealth, resistanceSeconds);
+    }
+
+    public boolean revive(Player player, double health, int resistanceSeconds) {
+        if (reviveManager != null) {
+            reviveManager.cancelTarget(player, false);
+        }
+
         KnockoutSession session = sessions.remove(player.getUniqueId());
         if (session == null) {
             return false;
         }
 
         restorePlayer(player, session);
-        double configuredHealth = Math.max(0.5D, plugin.getConfig().getDouble("admin-revive.health", 6.0D));
-        player.setHealth(Math.min(player.getMaxHealth(), configuredHealth));
+        player.setHealth(Math.min(player.getMaxHealth(), Math.max(0.5D, health)));
 
-        int resistanceSeconds = Math.max(0, plugin.getConfig().getInt("admin-revive.resistance-seconds", 3));
         if (resistanceSeconds > 0) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, resistanceSeconds * 20, 1, false, false, true));
         }
@@ -179,6 +193,10 @@ public final class KnockoutManager {
     }
 
     public boolean forceDeath(Player player) {
+        if (reviveManager != null) {
+            reviveManager.cancelTarget(player, false);
+        }
+
         KnockoutSession session = sessions.remove(player.getUniqueId());
         if (session == null) {
             return false;
@@ -192,6 +210,9 @@ public final class KnockoutManager {
     }
 
     public void cleanupExternalDeath(Player player) {
+        if (reviveManager != null) {
+            reviveManager.cancelTarget(player, false);
+        }
         KnockoutSession session = sessions.remove(player.getUniqueId());
         if (session != null) {
             restorePlayer(player, session);
@@ -199,6 +220,9 @@ public final class KnockoutManager {
     }
 
     public void cleanupQuit(Player player) {
+        if (reviveManager != null) {
+            reviveManager.cancelTarget(player, false);
+        }
         KnockoutSession session = sessions.remove(player.getUniqueId());
         if (session != null) {
             restorePlayer(player, session);
@@ -275,6 +299,7 @@ public final class KnockoutManager {
 
             long remaining = session.remainingSeconds(now);
             if (plugin.getConfig().getBoolean("knockout.display.actionbar.enabled", true)
+                    && (reviveManager == null || !reviveManager.isTargetBeingRevived(player))
                     && session.shouldRefreshDisplay(remaining)) {
                 String text = plugin.getConfig().getString(
                         "knockout.display.actionbar.text",

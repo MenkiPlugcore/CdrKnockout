@@ -3,6 +3,7 @@ package dev.cadera.cdrknockout;
 import dev.cadera.cdrknockout.command.CdrKnockoutCommand;
 import dev.cadera.cdrknockout.core.KnockoutManager;
 import dev.cadera.cdrknockout.listener.KnockoutListener;
+import dev.cadera.cdrknockout.revive.ReviveManager;
 import dev.cadera.cdrknockout.util.Messages;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -11,6 +12,7 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
 
     private Messages messages;
     private KnockoutManager knockoutManager;
+    private ReviveManager reviveManager;
 
     @Override
     public void onEnable() {
@@ -20,10 +22,14 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         messages.reload();
 
         knockoutManager = new KnockoutManager(this, messages);
+        reviveManager = new ReviveManager(this, knockoutManager, messages);
+        knockoutManager.setReviveManager(reviveManager);
+
         knockoutManager.start();
+        reviveManager.start();
 
         getServer().getPluginManager().registerEvents(
-                new KnockoutListener(this, knockoutManager, messages), this
+                new KnockoutListener(this, knockoutManager, reviveManager, messages), this
         );
 
         CdrKnockoutCommand commandHandler = new CdrKnockoutCommand(this, knockoutManager, messages);
@@ -39,6 +45,9 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (reviveManager != null) {
+            reviveManager.shutdown();
+        }
         if (knockoutManager != null) {
             knockoutManager.shutdown();
         }
@@ -47,6 +56,7 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
     public void reloadRuntimeConfig() {
         reloadConfig();
         messages.reload();
+        reviveManager.onReload();
         knockoutManager.onReload();
     }
 }

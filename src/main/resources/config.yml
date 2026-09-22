@@ -1,5 +1,5 @@
-# CdrKnockout v0.1.0
-# Core Knockout System
+# CdrKnockout v0.1.1
+# Core Knockout + Passive Proximity Revive
 
 debug: false
 
@@ -8,16 +8,12 @@ knockout:
   duration-seconds: 60
   minimum-health: 1.0
 
-  # Totem tetap mendapat kesempatan bekerja secara vanilla.
   respect-totem-of-undying: true
 
-  # Player dengan gamemode ini tidak masuk knockout otomatis.
   ignored-gamemodes:
     - CREATIVE
     - SPECTATOR
 
-  # Damage cause yang langsung mengikuti mekanik vanilla.
-  # /cdrko knockout tetap dapat dipakai untuk test manual.
   ignored-damage-causes:
     - VOID
     - KILL
@@ -31,7 +27,6 @@ knockout:
 
   pose:
     enabled: true
-    # v0.1.0 memakai swimming metadata untuk menghasilkan pose prone/crawl.
     mode: SWIMMING
 
   movement:
@@ -82,6 +77,43 @@ knockout:
 
   bleedout:
     enabled: true
+
+# v0.1.1 Passive Revive
+# Tidak menggunakan klik kiri/kanan. Penolong cukup dekat, pegang item di main hand, lalu jongkok.
+revive:
+  enabled: true
+  max-distance: 1.0
+  duration-seconds: 8.0
+
+  item:
+    enabled: true
+    material: GOLDEN_APPLE
+    amount: 1
+    # Item hanya hilang setelah revive 100% berhasil.
+    consume-on-success: true
+
+  channel:
+    # Revive selalu batal jika berhenti jongkok, menjauh > max-distance,
+    # mengganti/kehilangan item, mati, KO, logout, atau pindah world.
+    cancel-on-damage: true
+    cancel-on-attack: true
+    # Default false: reviver boleh menyesuaikan posisi selama tetap <= 1 block.
+    cancel-on-move: false
+    move-tolerance: 0.10
+
+  result:
+    health: 6.0
+    resistance-seconds: 3
+
+  display:
+    actionbar:
+      enabled: true
+      bar-segments: 10
+      reviver-text: '&a✚ REVIVING &f%target% &8| %bar% &f%percent%%%'
+      target-text: '&a✚ &f%reviver% &ais reviving you &8| %bar% &f%percent%%%'
+      success-reviver: '&a&lREVIVE SUCCESS'
+      success-target: '&a&lREVIVED'
+      cancelled: '&c&lREVIVE INTERRUPTED'
 
 admin-revive:
   health: 6.0

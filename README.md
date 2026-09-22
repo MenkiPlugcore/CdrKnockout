@@ -2,29 +2,49 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v0.1.0 — Core Knockout System**
+Versi saat ini: **v0.1.1 — Passive Revive Core**
 
-> Status: alpha / development. v0.1.0 fokus membangun fondasi knockout yang stabil sebelum passive revive dan integrasi lanjutan ditambahkan.
+> Status: alpha / development. Core knockout dan passive proximity revive sudah tersedia; requirement lanjutan dan regression AxGraves formal masih mengikuti roadmap.
 
 ## Target platform
 
 - Paper 1.21.11
 - Java 21
-- Dirancang agar kematian asli tetap menggunakan alur Bukkit/Paper normal sehingga plugin grave seperti AxGraves dapat menangani `PlayerDeathEvent` setelah bleedout/forced death.
+- Dirancang agar real death tetap melewati `PlayerDeathEvent` normal sehingga grave plugin seperti AxGraves dapat bekerja setelah bleedout/forced death.
 
-## v0.1.0
+## Knockout Core
 
-- Intercept lethal damage sebelum player benar-benar mati.
+- Lethal damage di-intercept sebelum kematian asli.
 - State `KNOCKED` dengan timer configurable.
-- Pose tiarap berbasis swimming pose, terpisah dari sistem carry masa depan.
-- Position lock: tidak dapat jalan/lompat, tetapi kamera masih dapat digerakkan.
-- Efek Blindness, Weakness, Slowness, dan Darkness configurable.
-- Restriction attack, interact, item use/drop, inventory, dan command.
-- World policy: `ALL`, `WHITELIST`, atau `BLACKLIST`.
-- Respect Totem of Undying secara default.
-- Bleedout menjadi real death; ini sengaja tidak menahan `PlayerDeathEvent`.
-- Admin commands untuk test/debug.
-- Debug logging configurable.
+- Pose tiarap berbasis swimming metadata.
+- Position lock dengan kamera tetap bebas.
+- Blindness / Weakness / Slowness / Darkness configurable.
+- ALL / WHITELIST / BLACKLIST world policy.
+- Bleedout menjadi real death.
+
+## v0.1.1 Passive Revive
+
+Revive tidak membutuhkan klik.
+
+```text
+Player KNOCKED
+      ↑ <= 1 block
+Reviver + SNEAK + revive item di MAIN HAND
+      ↓
+channel progress
+      ↓
+100% -> REVIVED
+```
+
+Default:
+
+- Max distance: `1.0` block.
+- Item: `GOLDEN_APPLE`.
+- Duration: `8` detik.
+- Item dikonsumsi hanya setelah sukses.
+- Klik kanan item diblok saat kondisi revive terpenuhi agar Golden Apple tidak termakan.
+- Channel batal jika jongkok dilepas, terlalu jauh, item berubah/hilang, reviver mati/KO/logout/pindah world.
+- Damage dan attack cancellation dapat diatur di config.
 
 ## Commands
 
@@ -47,31 +67,19 @@ mvn clean package
 Output:
 
 ```text
-target/CdrKnockout-0.1.0.jar
+target/CdrKnockout-0.1.1.jar
 ```
 
-## Test flow v0.1.0
+## Test flow
 
-```text
-lethal hit
-  -> damage dibatalkan
-  -> KNOCKED
-  -> player tiarap + terkunci
-  -> timer berjalan
-  -> /cdrko revive <player> = kembali hidup
-  ATAU
-  -> timer habis = real death -> PlayerDeathEvent -> grave plugin
-```
-
-Pengujian AxGraves yang diharapkan:
-
-1. Saat masuk KNOCKED, grave **tidak** boleh dibuat.
-2. Saat `/cdrko revive`, inventory tetap utuh dan tidak ada grave.
-3. Saat bleedout atau `/cdrko kill`, player benar-benar mati dan AxGraves boleh membuat grave.
-
-## Next
-
-v0.1.1 akan menambahkan **Passive Proximity Revive**: penolong berada maksimal 1 block, memegang item revive di main hand, lalu jongkok selama durasi revive. Tidak menggunakan klik kiri/kanan dan item baru dikonsumsi setelah revive berhasil.
+1. Knock target dengan lethal hit atau `/cdrko knockout <player>`.
+2. Pastikan target tiarap dan tidak mati.
+3. Reviver memegang Golden Apple di main hand.
+4. Berdiri maksimal 1 block dari target lalu tahan sneak.
+5. Jangan klik apa pun; progress ActionBar mulai otomatis.
+6. Setelah 100%, target bangun dan 1 Golden Apple dikonsumsi.
+7. Ulangi lalu putuskan sneak / menjauh / ganti item untuk memastikan revive cancel.
+8. Biarkan target bleedout untuk memastikan real death masih diteruskan ke AxGraves.
 
 ## License
 

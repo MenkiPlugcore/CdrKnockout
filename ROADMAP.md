@@ -1,9 +1,9 @@
 # CdrKnockout Roadmap
 
-## v0.1.0 — Core Knockout System
+## ✅ v0.1.0 — Core Knockout System
 Lethal interception, KNOCKED state, prone pose, movement/action restrictions, effects, timer, world policy, admin commands, config/messages, debug.
 
-## v0.1.1 — Passive Revive Core
+## ✅ v0.1.1 — Passive Revive Core
 Reviver maksimal 1 block, wajib sneak + pegang item revive di main hand, tanpa klik, channel progress, cancel conditions, consume item hanya saat sukses.
 
 ## v0.2.0 — Requirement Engine

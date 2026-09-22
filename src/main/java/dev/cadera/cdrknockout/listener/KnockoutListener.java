@@ -2,12 +2,14 @@ package dev.cadera.cdrknockout.listener;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.revive.ReviveManager;
 import dev.cadera.cdrknockout.util.Messages;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -33,11 +35,18 @@ public final class KnockoutListener implements Listener {
 
     private final CdrKnockoutPlugin plugin;
     private final KnockoutManager manager;
+    private final ReviveManager reviveManager;
     private final Messages messages;
 
-    public KnockoutListener(CdrKnockoutPlugin plugin, KnockoutManager manager, Messages messages) {
+    public KnockoutListener(
+            CdrKnockoutPlugin plugin,
+            KnockoutManager manager,
+            ReviveManager reviveManager,
+            Messages messages
+    ) {
         this.plugin = plugin;
         this.manager = manager;
+        this.reviveManager = reviveManager;
         this.messages = messages;
     }
 
@@ -46,6 +55,8 @@ public final class KnockoutListener implements Listener {
         if (!(event.getEntity() instanceof Player player)) {
             return;
         }
+
+        reviveManager.onPlayerDamaged(player);
 
         if (manager.isKnocked(player)) {
             event.setCancelled(true);
@@ -60,10 +71,11 @@ public final class KnockoutListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onOutgoingDamage(EntityDamageByEntityEvent event) {
-        if (event.getDamager() instanceof Player player
-                && manager.isKnocked(player)
-                && manager.restriction("attack", true)) {
-            event.setCancelled(true);
+        if (event.getDamager() instanceof Player player) {
+            reviveManager.onReviverAttack(player);
+            if (manager.isKnocked(player) && manager.restriction("attack", true)) {
+                event.setCancelled(true);
+            }
         }
     }
 
@@ -100,7 +112,14 @@ public final class KnockoutListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInteract(PlayerInteractEvent event) {
-        if (manager.isKnocked(event.getPlayer())
+        Player player = event.getPlayer();
+        Action action = event.getAction();
+        if ((action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)
+                && reviveManager.shouldBlockReviveItemUse(player)) {
+            event.setCancelled(true);
+        }
+
+        if (manager.isKnocked(player)
                 && (manager.restriction("interact", true) || manager.restriction("item-use", true))) {
             event.setCancelled(true);
         }
@@ -115,6 +134,11 @@ public final class KnockoutListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onConsume(PlayerItemConsumeEvent event) {
+        if (reviveManager.shouldBlockReviveItemUse(event.getPlayer())
+                && reviveManager.matchesRequiredItem(event.getItem())) {
+            event.setCancelled(true);
+            return;
+        }
         if (manager.isKnocked(event.getPlayer()) && manager.restriction("item-use", true)) {
             event.setCancelled(true);
         }
@@ -206,11 +230,13 @@ public final class KnockoutListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent event) {
+        reviveManager.handlePlayerUnavailable(event.getEntity());
         manager.cleanupExternalDeath(event.getEntity());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
+        reviveManager.handlePlayerUnavailable(event.getPlayer());
         manager.cleanupQuit(event.getPlayer());
     }
 }

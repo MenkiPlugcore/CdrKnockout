@@ -16,3 +16,9 @@ command-blocked: '%prefix%&cKamu tidak dapat menggunakan command itu saat KNOCKE
 player-knocked: '&cKamu KNOCKED! &7Tunggu bantuan sebelum timer habis.'
 player-revived: '&aKamu berhasil direvive.'
 player-bleedout: '&4Kamu kehabisan waktu...'
+
+revive-start-reviver: '%prefix%&aMulai revive &f%target%&a. Tetap jongkok, dekat, dan pegang item revive.'
+revive-start-target: '%prefix%&f%reviver% &asedang mencoba merevive kamu.'
+revive-cancelled-reviver: '%prefix%&cRevive terputus.'
+revive-cancelled-target: '%prefix%&cProses revive terputus.'
+revive-success-reviver: '%prefix%&a%target% berhasil direvive.'
