@@ -18,11 +18,13 @@ import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -56,6 +58,7 @@ public final class KnockoutListener implements Listener {
             return;
         }
 
+        manager.ensureRecovered(player);
         reviveManager.onPlayerDamaged(player);
 
         if (manager.isKnocked(player)) {
@@ -72,6 +75,7 @@ public final class KnockoutListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onOutgoingDamage(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player player) {
+            manager.ensureRecovered(player);
             reviveManager.onReviverAttack(player);
             if (manager.isKnocked(player) && manager.restriction("attack", true)) {
                 event.setCancelled(true);
@@ -105,9 +109,33 @@ public final class KnockoutListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event) {
-        if (manager.isKnocked(event.getPlayer()) && manager.restriction("teleport", true)) {
-            event.setCancelled(true);
+        Player player = event.getPlayer();
+        if (!manager.isKnocked(player) || manager.isInternalTeleport(player)) {
+            return;
         }
+
+        if (manager.handleTeleportAttempt(player, event.getTo(), event.getCause())) {
+            event.setCancelled(true);
+            player.sendMessage(messages.format("teleport-blocked"));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onChangedWorld(PlayerChangedWorldEvent event) {
+        manager.handleUnexpectedWorldChange(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        long delay = Math.max(1L, plugin.getConfig().getLong(
+                "stability.persistence.join-recovery-delay-ticks",
+                2L
+        ));
+        plugin.getServer().getScheduler().runTaskLater(
+                plugin,
+                () -> manager.recoverPlayer(event.getPlayer()),
+                delay
+        );
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
