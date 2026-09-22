@@ -15,8 +15,8 @@ Warning/heartbeat, downed-damage modes, per-cause environmental handling, `/give
 ## ✅ v0.3.0 — AxGraves Compatibility
 AxGraves softdepend, runtime GravePreSpawnEvent guard, no-grave-on-KO protection, managed death duplicate-grave guard, compatibility diagnostics, inventory/EXP ownership tetap di AxGraves, regression checklist.
 
-## v0.3.1 — Stability & Safety
-Relog/restart recovery, double-KO/revive guards, teleport/world-change safety, persistent state.
+## ✅ v0.3.1 — Stability & Safety
+Persistent `knockouts.yml`, relog/restart/reload recovery, configurable offline bleedout, duplicate KO guard, teleport BLOCK/FOLLOW policy, world-change reassertion, safe cleanup pada revive/death/quit.
 
 ## v0.4.0 — Execution System
 Optional execution channel untuk menghabisi player KNOCKED.

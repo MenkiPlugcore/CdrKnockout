@@ -16,13 +16,14 @@ public final class KnockoutSession {
     private final UUID playerId;
     private final long startedAtMillis;
     private long expiresAtMillis;
-    private final Location anchor;
+    private Location anchor;
     private final boolean originalSwimming;
     private final Map<PotionEffectType, PotionEffect> previousEffects;
     private final Set<PotionEffectType> managedEffects;
     private final Set<Integer> sentWarningThresholds = new HashSet<>();
     private long lastDisplayedSecond = Long.MIN_VALUE;
     private long lastHeartbeatMillis = Long.MIN_VALUE;
+    private long offlineSinceMillis;
 
     public KnockoutSession(
             UUID playerId,
@@ -33,6 +34,20 @@ public final class KnockoutSession {
             Map<PotionEffectType, PotionEffect> previousEffects,
             Set<PotionEffectType> managedEffects
     ) {
+        this(playerId, startedAtMillis, expiresAtMillis, anchor, originalSwimming,
+                previousEffects, managedEffects, 0L);
+    }
+
+    public KnockoutSession(
+            UUID playerId,
+            long startedAtMillis,
+            long expiresAtMillis,
+            Location anchor,
+            boolean originalSwimming,
+            Map<PotionEffectType, PotionEffect> previousEffects,
+            Set<PotionEffectType> managedEffects,
+            long offlineSinceMillis
+    ) {
         this.playerId = playerId;
         this.startedAtMillis = startedAtMillis;
         this.expiresAtMillis = expiresAtMillis;
@@ -40,6 +55,7 @@ public final class KnockoutSession {
         this.originalSwimming = originalSwimming;
         this.previousEffects = Collections.unmodifiableMap(new HashMap<>(previousEffects));
         this.managedEffects = Collections.unmodifiableSet(new HashSet<>(managedEffects));
+        this.offlineSinceMillis = Math.max(0L, offlineSinceMillis);
     }
 
     public UUID playerId() {
@@ -58,6 +74,12 @@ public final class KnockoutSession {
         return anchor.clone();
     }
 
+    public void updateAnchor(Location location) {
+        if (location != null) {
+            this.anchor = location.clone();
+        }
+    }
+
     public boolean originalSwimming() {
         return originalSwimming;
     }
@@ -68,6 +90,33 @@ public final class KnockoutSession {
 
     public Set<PotionEffectType> managedEffects() {
         return managedEffects;
+    }
+
+    public long offlineSinceMillis() {
+        return offlineSinceMillis;
+    }
+
+    public void markOffline(long now) {
+        if (offlineSinceMillis <= 0L) {
+            offlineSinceMillis = Math.max(1L, now);
+        }
+    }
+
+    public void resume(long now, boolean offlineTimeCounts) {
+        if (offlineSinceMillis <= 0L) {
+            return;
+        }
+        if (!offlineTimeCounts && expiresAtMillis != Long.MAX_VALUE) {
+            long pausedFor = Math.max(0L, now - offlineSinceMillis);
+            if (Long.MAX_VALUE - expiresAtMillis < pausedFor) {
+                expiresAtMillis = Long.MAX_VALUE;
+            } else {
+                expiresAtMillis += pausedFor;
+            }
+        }
+        offlineSinceMillis = 0L;
+        lastDisplayedSecond = Long.MIN_VALUE;
+        lastHeartbeatMillis = Long.MIN_VALUE;
     }
 
     public long remainingSeconds(long now) {

@@ -3,9 +3,9 @@
 
   <groupId>store.cadera</groupId>
   <artifactId>CdrKnockout</artifactId>
-  <version>0.3.0</version>
+  <version>0.3.1</version>
   <name>CdrKnockout</name>
-  <description>Knockout, passive revive, requirements, bleedout, death, and AxGraves compatibility for Paper servers by CADERA.</description>
+  <description>Knockout, passive revive, persistence, stability, and AxGraves compatibility for Paper servers by CADERA.</description>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>

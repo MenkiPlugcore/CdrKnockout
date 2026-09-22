@@ -12,6 +12,7 @@ killed-admin: '%prefix%&c%player% dipaksa menuju real death.'
 status-normal: '%prefix%&f%player%&7: &aNORMAL'
 status-knocked: '%prefix%&f%player%&7: &cKNOCKED &8(&f%time%s&8)'
 command-blocked: '%prefix%&cKamu tidak dapat menggunakan command itu saat KNOCKED.'
+teleport-blocked: '%prefix%&cKamu tidak dapat berpindah tempat saat sedang KNOCKED.'
 
 player-knocked: '&cKamu KNOCKED! &7Tunggu bantuan sebelum timer habis.'
 player-revived: '&aKamu berhasil direvive.'
@@ -19,6 +20,10 @@ player-bleedout: '&4Kamu kehabisan waktu...'
 player-downed-fatal: '&4Luka lanjutan menghabisimu...'
 player-giveup: '&4Kamu menyerah dan membiarkan dirimu mati...'
 bleedout-warning: '%prefix%&cBleedout dalam &f%time% detik&c.'
+
+recovery-restored: '%prefix%&eStatus KNOCKED dipulihkan. &7Sisa bleedout: &f%time%s&7.'
+recovery-expired: '%prefix%&4Bleedout kamu sudah habis saat offline.'
+recovery-cleared-missing-world: '%prefix%&eStatus KNOCKED lama dibersihkan karena world recovery tidak tersedia.'
 
 giveup-player-only: '%prefix%&cCommand ini hanya dapat digunakan player.'
 giveup-disabled: '%prefix%&cFitur give up sedang dinonaktifkan.'
