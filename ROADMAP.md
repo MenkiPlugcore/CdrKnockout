@@ -12,8 +12,8 @@ Toggle item, XP level, Vault money, AuraSkills, permission; mode ALL/ANY; requir
 ## ✅ v0.2.1 — Bleedout & Death Engine
 Warning/heartbeat, downed-damage modes, per-cause environmental handling, `/giveup`, guarded real-death queue, AxGraves-friendly `PlayerDeathEvent` pass-through.
 
-## v0.3.0 — AxGraves Compatibility
-Regression suite untuk no-grave-on-KO, real grave on death, inventory/EXP correctness, anti double-grave.
+## ✅ v0.3.0 — AxGraves Compatibility
+AxGraves softdepend, runtime GravePreSpawnEvent guard, no-grave-on-KO protection, managed death duplicate-grave guard, compatibility diagnostics, inventory/EXP ownership tetap di AxGraves, regression checklist.
 
 ## v0.3.1 — Stability & Safety
 Relog/restart recovery, double-KO/revive guards, teleport/world-change safety, persistent state.
