@@ -1,0 +1,18 @@
+prefix: '&8[&cCdrKnockout&8] '
+
+no-permission: '%prefix%&cKamu tidak punya permission.'
+usage: '%prefix%&7Gunakan: &f/cdrko <reload|knockout|revive|kill|status> [player]'
+player-not-found: '%prefix%&cPlayer &f%player% &ctidak ditemukan.'
+reload: '%prefix%&aConfig dan messages berhasil direload.'
+already-knocked: '%prefix%&e%player% sudah dalam kondisi KNOCKED.'
+not-knocked: '%prefix%&e%player% tidak sedang KNOCKED.'
+knocked-admin: '%prefix%&a%player% dipaksa masuk KNOCKED.'
+revived-admin: '%prefix%&a%player% berhasil direvive.'
+killed-admin: '%prefix%&c%player% dipaksa menuju real death.'
+status-normal: '%prefix%&f%player%&7: &aNORMAL'
+status-knocked: '%prefix%&f%player%&7: &cKNOCKED &8(&f%time%s&8)'
+command-blocked: '%prefix%&cKamu tidak dapat menggunakan command itu saat KNOCKED.'
+
+player-knocked: '&cKamu KNOCKED! &7Tunggu bantuan sebelum timer habis.'
+player-revived: '&aKamu berhasil direvive.'
+player-bleedout: '&4Kamu kehabisan waktu...'

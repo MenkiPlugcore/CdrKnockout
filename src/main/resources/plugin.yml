@@ -1,0 +1,31 @@
+name: CdrKnockout
+version: '${project.version}'
+main: dev.cadera.cdrknockout.CdrKnockoutPlugin
+api-version: '1.21'
+author: CADERA
+description: Modular knockout core for Paper servers.
+website: https://github.com/MenkiPlugcore/CdrKnockout
+
+commands:
+  cdrko:
+    description: CdrKnockout administration command.
+    usage: /cdrko <reload|knockout|revive|kill|status> [player]
+    aliases: [cdrknockout, cko]
+    permission: cdrknockout.command
+
+permissions:
+  cdrknockout.command:
+    default: op
+  cdrknockout.command.reload:
+    default: op
+  cdrknockout.command.knockout:
+    default: op
+  cdrknockout.command.revive:
+    default: op
+  cdrknockout.command.kill:
+    default: op
+  cdrknockout.command.status:
+    default: op
+  cdrknockout.bypass:
+    description: Prevent automatic lethal damage from entering knockout.
+    default: false

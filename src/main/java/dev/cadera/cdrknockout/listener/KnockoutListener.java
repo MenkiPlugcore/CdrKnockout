@@ -1,0 +1,216 @@
+package dev.cadera.cdrknockout.listener;
+
+import dev.cadera.cdrknockout.CdrKnockoutPlugin;
+import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.util.Messages;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerToggleFlightEvent;
+
+import java.util.Locale;
+
+public final class KnockoutListener implements Listener {
+
+    private final CdrKnockoutPlugin plugin;
+    private final KnockoutManager manager;
+    private final Messages messages;
+
+    public KnockoutListener(CdrKnockoutPlugin plugin, KnockoutManager manager, Messages messages) {
+        this.plugin = plugin;
+        this.manager = manager;
+        this.messages = messages;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+
+        if (manager.isKnocked(player)) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (manager.shouldInterceptLethalDamage(player, event)) {
+            event.setCancelled(true);
+            manager.knockout(player, event.getCause(), false);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onOutgoingDamage(EntityDamageByEntityEvent event) {
+        if (event.getDamager() instanceof Player player
+                && manager.isKnocked(player)
+                && manager.restriction("attack", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (!manager.isKnocked(player)
+                || !plugin.getConfig().getBoolean("knockout.movement.lock-position", true)
+                || event.getTo() == null) {
+            return;
+        }
+
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        boolean positionChanged = from.getX() != to.getX()
+                || from.getY() != to.getY()
+                || from.getZ() != to.getZ();
+        if (!positionChanged) {
+            return;
+        }
+
+        Location locked = manager.lockedLocation(player, to.getYaw(), to.getPitch());
+        if (locked != null) {
+            event.setTo(locked);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent event) {
+        if (manager.isKnocked(event.getPlayer()) && manager.restriction("teleport", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInteract(PlayerInteractEvent event) {
+        if (manager.isKnocked(event.getPlayer())
+                && (manager.restriction("interact", true) || manager.restriction("item-use", true))) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInteractEntity(PlayerInteractEntityEvent event) {
+        if (manager.isKnocked(event.getPlayer()) && manager.restriction("interact", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onConsume(PlayerItemConsumeEvent event) {
+        if (manager.isKnocked(event.getPlayer()) && manager.restriction("item-use", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        if (manager.isKnocked(event.getPlayer()) && manager.restriction("item-drop", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSwap(PlayerSwapHandItemsEvent event) {
+        if (manager.isKnocked(event.getPlayer()) && manager.restriction("item-use", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) {
+        if (manager.isKnocked(event.getPlayer()) && manager.restriction("interact", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        if (manager.isKnocked(event.getPlayer()) && manager.restriction("interact", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getWhoClicked() instanceof Player player
+                && manager.isKnocked(player)
+                && manager.restriction("inventory", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getWhoClicked() instanceof Player player
+                && manager.isKnocked(player)
+                && manager.restriction("inventory", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPickup(EntityPickupItemEvent event) {
+        if (event.getEntity() instanceof Player player
+                && manager.isKnocked(player)
+                && manager.restriction("inventory", true)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onFlight(PlayerToggleFlightEvent event) {
+        if (manager.isKnocked(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        Player player = event.getPlayer();
+        if (!manager.isKnocked(player)
+                || !plugin.getConfig().getBoolean("knockout.restrictions.commands.enabled", true)) {
+            return;
+        }
+
+        String raw = event.getMessage().trim();
+        if (raw.startsWith("/")) {
+            raw = raw.substring(1);
+        }
+        if (raw.isBlank()) {
+            return;
+        }
+        String label = raw.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+        if (!manager.isCommandAllowed(label)) {
+            event.setCancelled(true);
+            player.sendMessage(messages.format("command-blocked"));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeath(PlayerDeathEvent event) {
+        manager.cleanupExternalDeath(event.getEntity());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onQuit(PlayerQuitEvent event) {
+        manager.cleanupQuit(event.getPlayer());
+    }
+}

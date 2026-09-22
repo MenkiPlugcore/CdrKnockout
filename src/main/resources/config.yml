@@ -1,0 +1,88 @@
+# CdrKnockout v0.1.0
+# Core Knockout System
+
+debug: false
+
+knockout:
+  enabled: true
+  duration-seconds: 60
+  minimum-health: 1.0
+
+  # Totem tetap mendapat kesempatan bekerja secara vanilla.
+  respect-totem-of-undying: true
+
+  # Player dengan gamemode ini tidak masuk knockout otomatis.
+  ignored-gamemodes:
+    - CREATIVE
+    - SPECTATOR
+
+  # Damage cause yang langsung mengikuti mekanik vanilla.
+  # /cdrko knockout tetap dapat dipakai untuk test manual.
+  ignored-damage-causes:
+    - VOID
+    - KILL
+
+  worlds:
+    # ALL = semua world
+    # WHITELIST = hanya world pada list
+    # BLACKLIST = semua kecuali world pada list
+    mode: ALL
+    list: []
+
+  pose:
+    enabled: true
+    # v0.1.0 memakai swimming metadata untuk menghasilkan pose prone/crawl.
+    mode: SWIMMING
+
+  movement:
+    lock-position: true
+    allow-camera: true
+    zero-velocity: true
+
+  effects:
+    blindness:
+      enabled: true
+      amplifier: 0
+    weakness:
+      enabled: true
+      amplifier: 4
+    slowness:
+      enabled: true
+      amplifier: 10
+    darkness:
+      enabled: false
+      amplifier: 0
+
+  restrictions:
+    attack: true
+    interact: true
+    item-use: true
+    item-drop: true
+    inventory: true
+    teleport: true
+    commands:
+      enabled: true
+      allowed:
+        - msg
+        - r
+        - reply
+        - helpop
+        - cdrko
+        - cdrknockout
+        - cko
+
+  display:
+    actionbar:
+      enabled: true
+      text: '&c&lKNOCKED &8| &fBleedout: &c%time%s'
+    title:
+      enabled: true
+      title: '&c&lKNOCKED'
+      subtitle: '&7Wait for help...'
+
+  bleedout:
+    enabled: true
+
+admin-revive:
+  health: 6.0
+  resistance-seconds: 3
