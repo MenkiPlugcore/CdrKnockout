@@ -1,7 +1,7 @@
 prefix: '&8[&cCdrKnockout&8] '
 
 no-permission: '%prefix%&cKamu tidak punya permission.'
-usage: '%prefix%&7Gunakan: &f/cdrko <reload|knockout|revive|kill|status> [player]'
+usage: '%prefix%&7Gunakan: &f/cdrko <reload|knockout|revive|kill|status|compat> [player]'
 player-not-found: '%prefix%&cPlayer &f%player% &ctidak ditemukan.'
 reload: '%prefix%&aConfig dan messages berhasil direload.'
 already-knocked: '%prefix%&e%player% sudah dalam kondisi KNOCKED.'
