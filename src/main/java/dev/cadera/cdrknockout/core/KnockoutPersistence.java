@@ -198,6 +198,7 @@ public final class KnockoutPersistence {
                         yaw,
                         pitch,
                         section.getBoolean("original-swimming", false),
+                        section.getBoolean("original-sneaking", false),
                         previousEffects,
                         managedEffects,
                         section.getLong("offline-since", 0L)
@@ -221,7 +222,7 @@ public final class KnockoutPersistence {
         }
 
         YamlConfiguration yaml = new YamlConfiguration();
-        yaml.set("version", 1);
+        yaml.set("version", 2);
 
         for (Map.Entry<UUID, StoredSession> entry : stored.entrySet()) {
             String base = "sessions." + entry.getKey();
@@ -231,6 +232,7 @@ public final class KnockoutPersistence {
             yaml.set(base + ".expires-at", session.expiresAtMillis());
             yaml.set(base + ".offline-since", session.offlineSinceMillis());
             yaml.set(base + ".original-swimming", session.originalSwimming());
+            yaml.set(base + ".original-sneaking", session.originalSneaking());
             yaml.set(base + ".anchor.world", session.worldName());
             yaml.set(base + ".anchor.x", session.x());
             yaml.set(base + ".anchor.y", session.y());
@@ -281,6 +283,7 @@ public final class KnockoutPersistence {
             float yaw,
             float pitch,
             boolean originalSwimming,
+            boolean originalSneaking,
             Map<PotionEffectType, PotionEffect> previousEffects,
             Set<PotionEffectType> managedEffects,
             long offlineSinceMillis
@@ -305,6 +308,7 @@ public final class KnockoutPersistence {
                     anchor.getYaw(),
                     anchor.getPitch(),
                     session.originalSwimming(),
+                    session.originalSneaking(),
                     session.previousEffects(),
                     session.managedEffects(),
                     session.offlineSinceMillis()
@@ -318,6 +322,7 @@ public final class KnockoutPersistence {
                     expiresAtMillis,
                     anchor,
                     originalSwimming,
+                    originalSneaking,
                     previousEffects,
                     managedEffects,
                     offlineSinceMillis
