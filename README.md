@@ -2,17 +2,20 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v0.4.0 — Execution System**
+Versi saat ini: **v0.6.0 — Java & Bedrock Compatibility**
 
-> Status: alpha / development. Core knockout, passive proximity revive, requirement engine, bleedout/death, AxGraves compatibility, persistence/recovery, dan execution channel sudah tersedia.
+> Status: alpha / development. Core knockout, passive proximity revive, requirement engine, bleedout/death, AxGraves compatibility, persistence/recovery, execution channel, dan Java/Bedrock client compatibility sudah tersedia.
 
 ## Target platform
 
 - Paper 1.21.11
 - Java 21
-- Optional integration: Vault + economy provider
-- Optional integration: AuraSkills
-- Optional integration: AxGraves
+- Java Edition client
+- Bedrock Edition via Geyser
+- Optional Floodgate integration
+- Optional Vault + economy provider
+- Optional AuraSkills
+- Optional AxGraves
 
 ## Core flow
 
@@ -43,23 +46,19 @@ Default revive:
 
 Tidak membutuhkan klik kiri/kanan. Requirement tersedia: `ITEM`, `XP_LEVEL`, `MONEY`, `AURASKILLS`, dan `PERMISSION`, dengan mode `ALL` atau `ANY`.
 
-## Bleedout & Death Engine
+## Execution
 
-- Warning configurable, default `30 / 10 / 5` detik.
-- Heartbeat kondisi kritis.
-- Downed damage: `IGNORE`, `REDUCE_TIMER`, `INSTANT_DEATH`.
-- `/giveup`.
-- Guard terhadap duplicate real-death queue.
-- Real death tetap memakai flow Paper normal.
+Default execution:
 
-## AxGraves Compatibility
+```text
+Target KNOCKED
++ executor <= 1 block
++ executor sneak
++ sword di main hand
++ tahan 3 detik
+```
 
-- AxGraves sebagai `softdepend`.
-- Runtime `GravePreSpawnEvent` guard.
-- Tidak ada grave saat hanya KNOCKED.
-- Managed death duplicate-grave guard.
-- Inventory/EXP grave tetap dikelola AxGraves.
-- `/cdrko compat` untuk diagnostics.
+Execution dan revive saling eksklusif. Execution selesai melalui managed real-death flow sehingga AxGraves tetap menerima death event normal.
 
 ## Stability & Safety
 
@@ -70,48 +69,69 @@ Tidak membutuhkan klik kiri/kanan. Requirement tersedia: `ITEM`, `XP_LEVEL`, `MO
 - Duplicate KO guard.
 - World-change reassert safety-net.
 
-## v0.4.0 Execution System
+## AxGraves Compatibility
 
-Execution adalah passive channel untuk menghabisi player yang sedang `KNOCKED`.
+- AxGraves sebagai `softdepend`.
+- Runtime `GravePreSpawnEvent` guard.
+- Tidak ada grave saat hanya KNOCKED.
+- Managed death duplicate-grave guard.
+- Inventory/EXP grave tetap dikelola AxGraves.
+- `/cdrko compat` untuk diagnostics.
 
-Default:
+## v0.6.0 Java & Bedrock Compatibility
 
-```text
-Target KNOCKED
-+ executor <= 1 block
-+ executor sneak
-+ sword di main hand
-+ tahan 3 detik
-        ↓
-EXECUTION COMPLETE
-        ↓
-managed real death
-        ↓
-AxGraves
-```
+CdrKnockout sekarang mendeteksi platform client tanpa hard dependency.
 
-Tidak perlu klik kiri atau kanan.
-
-Default execution item:
-
-- Wooden Sword
-- Stone Sword
-- Iron Sword
-- Golden Sword
-- Diamond Sword
-- Netherite Sword
-
-Execution dan revive saling eksklusif. Holding execution weapon memberi execution intent sehingga player tidak salah masuk revive channel walaupun requirement revive memakai mode lain.
-
-Execution dapat dibatalkan saat executor berhenti sneak, menjauh, ganti item, mati/KO/logout, terkena damage, menyerang entity lain, atau target tidak lagi valid. Semua behaviour utama configurable.
-
-Permission:
+Detection order:
 
 ```text
-cdrknockout.execute
+Geyser API
+  -> jika tersedia, cek isBedrockPlayer(UUID)
+Floodgate API
+  -> fallback cek isFloodgatePlayer(UUID)
+Tidak ada hook
+  -> UNKNOWN
 ```
 
-Panduan lengkap: `docs/EXECUTION-SYSTEM.md`.
+Geyser/Floodgate diakses secara reflektif sehingga plugin tetap dapat berjalan di server Java-only.
+
+Pose KNOCKED sekarang configurable per platform:
+
+```yaml
+compatibility:
+  client:
+    detection:
+      enabled: true
+      log-status: true
+
+    pose:
+      java-mode: SWIMMING
+      bedrock-mode: SWIMMING
+      unknown-mode: SWIMMING
+```
+
+Mode pose:
+
+- `SWIMMING` — prone/crawl-style pose utama.
+- `CROUCH` — fallback untuk build Geyser/Bedrock yang tidak merender SWIMMING dengan benar.
+- `NONE` — tidak memaksa pose; movement lock/effect KO tetap aktif.
+
+Original swimming dan sneaking state disimpan sehingga pose dapat dipulihkan setelah revive/death/recovery.
+
+Diagnostics:
+
+```text
+/cdrko compat
+/cdrko platform <player>
+```
+
+`/cdrko platform <player>` menampilkan hasil deteksi `JAVA / BEDROCK / UNKNOWN`, status hook Geyser/Floodgate, dan pose mode yang aktif untuk player tersebut.
+
+Passive revive dan execution tetap no-click, sehingga tidak bergantung pada perbedaan click/touch control Java dan Bedrock.
+
+## Carry System
+
+Milestone `v0.5.0 — Carry System` **SKIPPED**. Carry/passenger tidak dimasukkan agar pose KO tidak bergantung pada passenger/ArmorStand mechanics dan core tetap stabil.
 
 ## Commands
 
@@ -122,6 +142,7 @@ Panduan lengkap: `docs/EXECUTION-SYSTEM.md`.
 /cdrko kill <player>
 /cdrko status <player>
 /cdrko compat
+/cdrko platform <player>
 /giveup
 ```
 
@@ -136,19 +157,19 @@ mvn clean package
 Output:
 
 ```text
-target/CdrKnockout-0.4.0.jar
+target/CdrKnockout-0.6.0.jar
 ```
 
-## Regression utama v0.4.0
+## Crossplay regression v0.6.0
 
-1. KO target -> tidak ada grave.
-2. Revive dengan Golden Apple -> tetap revive normal.
-3. Sword + sneak <=1 block -> execution channel muncul.
-4. Lepas sneak / menjauh / ganti sword -> execution batal.
-5. Execution 100% -> target real death.
-6. AxGraves -> tepat satu grave.
-7. Dua executor -> hanya satu session target.
-8. Restart/relog target KNOCKED -> persistence v0.3.1 tetap bekerja.
+1. Java player -> `/cdrko platform` harus mendeteksi `JAVA` jika Geyser/Floodgate hook aktif.
+2. Bedrock player -> `/cdrko platform` harus mendeteksi `BEDROCK`.
+3. KO Java -> pose, movement lock, blindness, ActionBar, title, heartbeat berjalan.
+4. KO Bedrock -> pose SWIMMING diuji; jika visual tidak sesuai, set `bedrock-mode: CROUCH` lalu reload.
+5. Bedrock revive -> dekat <=1 block + Golden Apple + sneak, tanpa klik.
+6. Bedrock execution -> dekat <=1 block + sword + sneak, tanpa klik.
+7. Relog/restart player Bedrock saat KO -> state dan pose dipulihkan.
+8. Bleedout/execution -> AxGraves harus tetap membuat tepat satu grave.
 
 ## License
 
