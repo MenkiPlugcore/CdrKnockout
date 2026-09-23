@@ -26,16 +26,17 @@ jobs:
       - name: Validate release jar
         shell: bash
         run: |
-          test -f target/CdrKnockout-1.0.1.jar
-          jar tf target/CdrKnockout-1.0.1.jar | grep -F 'dev/cadera/cdrknockout/CdrKnockoutPlugin.class'
-          jar tf target/CdrKnockout-1.0.1.jar | grep -F 'dev/cadera/cdrknockout/diagnostic/ProductionDiagnostics.class'
-          jar tf target/CdrKnockout-1.0.1.jar | grep -F 'dev/cadera/cdrknockout/license/LicenseGuard.class'
-          jar tf target/CdrKnockout-1.0.1.jar | grep -F 'license-template.txt'
-          unzip -p target/CdrKnockout-1.0.1.jar plugin.yml | grep -F "version: '1.0.1'"
+          test -f target/CdrKnockout-1.0.2.jar
+          jar tf target/CdrKnockout-1.0.2.jar | grep -F 'dev/cadera/cdrknockout/CdrKnockoutPlugin.class'
+          jar tf target/CdrKnockout-1.0.2.jar | grep -F 'dev/cadera/cdrknockout/platform/PoseEngine.class'
+          jar tf target/CdrKnockout-1.0.2.jar | grep -F 'dev/cadera/cdrknockout/diagnostic/ProductionDiagnostics.class'
+          jar tf target/CdrKnockout-1.0.2.jar | grep -F 'dev/cadera/cdrknockout/license/LicenseGuard.class'
+          jar tf target/CdrKnockout-1.0.2.jar | grep -F 'license-template.txt'
+          unzip -p target/CdrKnockout-1.0.2.jar plugin.yml | grep -F "version: '1.0.2'"
 
       - name: Upload jar
         uses: actions/upload-artifact@v4
         with:
-          name: CdrKnockout-1.0.1
-          path: target/CdrKnockout-1.0.1.jar
+          name: CdrKnockout-1.0.2
+          path: target/CdrKnockout-1.0.2.jar
           if-no-files-found: error
