@@ -19,6 +19,7 @@ import dev.cadera.cdrknockout.gameplay.SelfReviveManager;
 import dev.cadera.cdrknockout.gameplay.StatisticsManager;
 import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
 import dev.cadera.cdrknockout.integration.PlaceholderApiIntegration;
+import dev.cadera.cdrknockout.license.LicenseGuard;
 import dev.cadera.cdrknockout.listener.KnockoutListener;
 import dev.cadera.cdrknockout.platform.ClientPlatformResolver;
 import dev.cadera.cdrknockout.platform.PoseEngine;
@@ -30,6 +31,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class CdrKnockoutPlugin extends JavaPlugin {
 
+    private LicenseGuard licenseGuard;
     private Messages messages;
     private KnockoutPersistence persistence;
     private ClientPlatformResolver platformResolver;
@@ -49,7 +51,13 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        // License guard intentionally runs before normal plugin bootstrap. On the first valid start it
+        // generates plugins/CdrKnockout/LICENSE.txt. Existing installations must keep that file intact.
+        licenseGuard = new LicenseGuard(this);
+        licenseGuard.initializeOrThrow();
+
         saveDefaultConfig();
+        licenseGuard.startMonitoring();
 
         messages = new Messages(this);
         messages.reload();
@@ -161,6 +169,9 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (licenseGuard != null) {
+            licenseGuard.stopMonitoring();
+        }
         if (placeholderApiIntegration != null) {
             placeholderApiIntegration.shutdown();
         }
