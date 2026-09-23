@@ -7,6 +7,8 @@ import dev.cadera.cdrknockout.core.KnockoutPersistence;
 import dev.cadera.cdrknockout.execution.ExecutionManager;
 import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
 import dev.cadera.cdrknockout.listener.KnockoutListener;
+import dev.cadera.cdrknockout.platform.ClientPlatformResolver;
+import dev.cadera.cdrknockout.platform.PoseEngine;
 import dev.cadera.cdrknockout.revive.ReviveManager;
 import dev.cadera.cdrknockout.util.Messages;
 import org.bukkit.command.PluginCommand;
@@ -16,6 +18,8 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
 
     private Messages messages;
     private KnockoutPersistence persistence;
+    private ClientPlatformResolver platformResolver;
+    private PoseEngine poseEngine;
     private KnockoutManager knockoutManager;
     private ReviveManager reviveManager;
     private ExecutionManager executionManager;
@@ -28,10 +32,14 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         messages = new Messages(this);
         messages.reload();
 
+        platformResolver = new ClientPlatformResolver(this);
+        platformResolver.start();
+        poseEngine = new PoseEngine(this, platformResolver);
+
         persistence = new KnockoutPersistence(this);
         persistence.start();
 
-        knockoutManager = new KnockoutManager(this, messages, persistence);
+        knockoutManager = new KnockoutManager(this, messages, persistence, poseEngine);
         reviveManager = new ReviveManager(this, knockoutManager, messages);
         executionManager = new ExecutionManager(this, knockoutManager, reviveManager, messages);
         reviveManager.setExecutionManager(executionManager);
@@ -51,7 +59,9 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
                 this,
                 knockoutManager,
                 messages,
-                axGravesCompatibility
+                axGravesCompatibility,
+                platformResolver,
+                poseEngine
         );
         PluginCommand command = getCommand("cdrko");
         if (command == null) {
@@ -86,11 +96,17 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         if (persistence != null) {
             persistence.shutdown();
         }
+        if (platformResolver != null) {
+            platformResolver.shutdown();
+        }
     }
 
     public void reloadRuntimeConfig() {
         reloadConfig();
         messages.reload();
+        if (platformResolver != null) {
+            platformResolver.reload();
+        }
         if (persistence != null) {
             persistence.reload();
         }

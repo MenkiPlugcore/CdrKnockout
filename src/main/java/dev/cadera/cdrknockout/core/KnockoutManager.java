@@ -1,6 +1,7 @@
 package dev.cadera.cdrknockout.core;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
+import dev.cadera.cdrknockout.platform.PoseEngine;
 import dev.cadera.cdrknockout.revive.ReviveManager;
 import dev.cadera.cdrknockout.util.Messages;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -34,6 +35,7 @@ public final class KnockoutManager {
     private final CdrKnockoutPlugin plugin;
     private final Messages messages;
     private final KnockoutPersistence persistence;
+    private final PoseEngine poseEngine;
     private final Map<UUID, KnockoutSession> sessions = new HashMap<>();
     private final Set<UUID> deathInProgress = new HashSet<>();
     private final Set<UUID> internalTeleports = new HashSet<>();
@@ -43,11 +45,13 @@ public final class KnockoutManager {
     public KnockoutManager(
             CdrKnockoutPlugin plugin,
             Messages messages,
-            KnockoutPersistence persistence
+            KnockoutPersistence persistence,
+            PoseEngine poseEngine
     ) {
         this.plugin = plugin;
         this.messages = messages;
         this.persistence = persistence;
+        this.poseEngine = poseEngine;
     }
 
     public void setReviveManager(ReviveManager reviveManager) {
@@ -251,6 +255,7 @@ public final class KnockoutManager {
                 expiresAt,
                 player.getLocation(),
                 player.isSwimming(),
+                player.isSneaking(),
                 previousEffects,
                 managedEffects
         );
@@ -274,7 +279,7 @@ public final class KnockoutManager {
         if (plugin.getConfig().getBoolean("knockout.movement.zero-velocity", true)) {
             player.setVelocity(new Vector(0, 0, 0));
         }
-        enforcePose(player);
+        poseEngine.apply(player, session);
 
         if (plugin.getConfig().getBoolean("knockout.display.title.enabled", true)) {
             String title = messages.color(plugin.getConfig().getString("knockout.display.title.title", "&c&lKNOCKED"));
@@ -598,7 +603,7 @@ public final class KnockoutManager {
                 continue;
             }
 
-            enforcePose(player);
+            poseEngine.apply(player, session);
             if (plugin.getConfig().getBoolean("knockout.movement.zero-velocity", true)) {
                 player.setVelocity(new Vector(0, 0, 0));
             }
@@ -734,16 +739,6 @@ public final class KnockoutManager {
         ));
     }
 
-    private void enforcePose(Player player) {
-        if (!plugin.getConfig().getBoolean("knockout.pose.enabled", true)) {
-            return;
-        }
-        String mode = plugin.getConfig().getString("knockout.pose.mode", "SWIMMING");
-        if (mode != null && mode.equalsIgnoreCase("SWIMMING") && !player.isSwimming()) {
-            player.setSwimming(true);
-        }
-    }
-
     private void applyRecoveredState(Player player, KnockoutSession session) {
         for (PotionEffectType type : session.managedEffects()) {
             player.removePotionEffect(type);
@@ -766,7 +761,7 @@ public final class KnockoutManager {
         player.setSprinting(false);
         player.setGliding(false);
         player.setVelocity(new Vector(0, 0, 0));
-        enforcePose(player);
+        poseEngine.apply(player, session);
     }
 
     private String configName(PotionEffectType type) {
@@ -794,7 +789,7 @@ public final class KnockoutManager {
             }
         }
         if (player.isOnline() && !player.isDead()) {
-            player.setSwimming(session.originalSwimming());
+            poseEngine.restore(player, session);
             player.setVelocity(new Vector(0, 0, 0));
         }
     }

@@ -1,6 +1,6 @@
-# CdrKnockout v0.4.0
+# CdrKnockout v0.6.0
 # Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death
-# + AxGraves Compatibility + Stability & Safety + Execution System
+# + AxGraves Compatibility + Stability & Safety + Execution + Java/Bedrock Compatibility
 
 debug: false
 
@@ -25,6 +25,8 @@ knockout:
 
   pose:
     enabled: true
+    # v0.6.0: mode pose per platform diatur di compatibility.client.pose.*
+    # Key ini dipertahankan hanya untuk kompatibilitas config lama.
     mode: SWIMMING
 
   movement:
@@ -225,21 +227,11 @@ execution:
       - NETHERITE_SWORD
 
   channel:
-    # Damage pada executor membatalkan execution.
     cancel-on-damage: true
-
-    # Damage pada target KNOCKED tidak membatalkan execution secara default.
-    # Downed-damage engine tetap dapat mengurangi bleedout/menyebabkan real death.
     cancel-on-target-damage: false
-
-    # Jika executor menyerang entity saat channel berlangsung, execution batal.
     cancel-on-attack: true
-
-    # Jika true, executor harus tetap di titik awal channel.
     cancel-on-move: false
     move-tolerance: 0.10
-
-    # Ganti sword/material di tengah channel = batal.
     cancel-on-item-change: true
 
   display:
@@ -255,46 +247,40 @@ execution:
 # v0.3.1 Stability & Safety
 stability:
   persistence:
-    # Jika aktif, status KNOCKED disimpan ke plugins/CdrKnockout/knockouts.yml.
     enabled: true
-
-    # Autosave safety-net. State penting juga langsung di-flush saat KO, quit, revive, dan real death.
     autosave-ticks: 40
-
-    # true  = timer bleedout tetap berjalan saat player offline/server mati.
-    # false = timer dipause selama player offline/server mati.
     offline-time-counts: true
-
-    # Saat relog/restart, player dikembalikan ke titik KO sebelum state diterapkan lagi.
     restore-anchor-on-join: true
     join-recovery-delay-ticks: 2
-
-    # CURRENT = jika world anchor belum tersedia, recovery memakai lokasi login sekarang.
-    # CLEAR   = batalkan state tersimpan jika world anchor tidak ditemukan.
     missing-world-policy: CURRENT
 
   teleport:
-    # BLOCK  = teleport player KNOCKED dibatalkan dan anchor tetap.
-    # FOLLOW = teleport diizinkan dan titik lock/anchor ikut dipindahkan ke tujuan.
     mode: BLOCK
-
-    # Safety-net bila plugin lain berhasil memindahkan world walaupun teleport seharusnya diblok.
     reassert-on-world-change: true
 
-# v0.3.0 AxGraves compatibility.
-# Integrasi ini tidak mengambil alih inventory/EXP. AxGraves tetap menerima PlayerDeathEvent normal.
 compatibility:
+  # v0.6.0 Java & Bedrock Compatibility
+  client:
+    detection:
+      # Auto-detect BEDROCK lewat Geyser API dan/atau Floodgate API.
+      # Tidak ada hard dependency; pure Java server tetap bisa menjalankan plugin.
+      enabled: true
+      log-status: true
+
+    pose:
+      # SWIMMING = prone/crawl-style pose yang dipakai Java.
+      # CROUCH   = fallback aman bila build Geyser/Bedrock tertentu tidak merender SWIMMING dengan benar.
+      # NONE     = jangan paksa pose, movement lock/effect KO tetap aktif.
+      java-mode: SWIMMING
+      bedrock-mode: SWIMMING
+      unknown-mode: SWIMMING
+
+  # v0.3.0 AxGraves compatibility.
   axgraves:
     enabled: true
-
-    # Safety net: GravePreSpawnEvent dibatalkan jika target masih KNOCKED dan belum real death.
     block-graves-while-knocked: true
-
-    # Satu CdrKnockout managed real-death hanya boleh menghasilkan satu GravePreSpawnEvent.
     prevent-duplicate-managed-graves: true
     duplicate-window-ticks: 40
-
-    # Aktifkan hanya saat troubleshooting karena dapat menambah log console.
     log-diagnostics: false
 
 admin-revive:
