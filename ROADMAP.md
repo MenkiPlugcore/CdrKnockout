@@ -33,5 +33,8 @@ Public API, immutable snapshot, custom transition events, optional PlaceholderAP
 ## ✅ v0.8.0 — Gameplay Expansion
 Self-revive, medic role + PDC Medical Kit, configurable gameplay modifiers/requirement bypass, distress signal, persistent statistics, gameplay commands, dan PlaceholderAPI additions.
 
-## ⏳ v1.0.0 — Production Stable
-Final regression/hardening untuk Java/Bedrock, PvP/PvE, environmental deaths, restart/relog, concurrency, API/events, gameplay expansion, PlaceholderAPI, dan AxGraves.
+## ✅ v1.0.0 — Production Stable
+Production hardening: atomic YAML persistence, reload-safe storage state, built-in KO recovery command compatibility, startup/reload diagnostics, `/cdrko doctor`, CI release verification, dan final production regression checklist.
+
+## Post-1.0 policy
+v1.0.x difokuskan untuk bugfix/backward compatibility. Fitur besar berikutnya harus masuk minor release baru agar core production tidak berubah tanpa kebutuhan.
