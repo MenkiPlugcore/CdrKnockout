@@ -13,8 +13,8 @@ import java.util.Locale;
  * Paper 1.21.11 exposes Entity#setPose(Pose, boolean). The previous
  * implementation only toggled Player#setSwimming(true), which changes the
  * swimming state but does not reliably force the client-visible body pose on
- * land. v1.0.2 uses a fixed native pose so Java clients, and Geyser where the
- * metadata is translated, receive an explicit prone/crouch pose.
+ * land. v1.0.2 keeps the swimming state for compatibility and additionally
+ * fixes the native SWIMMING pose so the body is explicitly rendered prone.
  */
 public final class PoseEngine {
 
@@ -44,15 +44,14 @@ public final class PoseEngine {
     }
 
     private void applyProne(Player player) {
-        // Keep the gameplay state separate from the body pose. We do not use
-        // passengers/ArmorStands and we do not rely on the player actually
-        // being in water. The fixed SWIMMING pose is Minecraft's native
-        // crawl/prone visual and remains until restore() explicitly releases it.
+        // No passengers, ArmorStands, mounts, or fake carrier entities are used.
+        // Keep the vanilla swimming state for Java/Geyser compatibility, then
+        // explicitly fix the body pose so it cannot snap back to STANDING on land.
         if (player.isSneaking()) {
             player.setSneaking(false);
         }
-        if (player.isSwimming()) {
-            player.setSwimming(false);
+        if (!player.isSwimming()) {
+            player.setSwimming(true);
         }
         if (player.getPose() != Pose.SWIMMING || !player.hasFixedPose()) {
             player.setPose(Pose.SWIMMING, true);
@@ -76,8 +75,8 @@ public final class PoseEngine {
             return;
         }
 
-        // Release the forced pose first, then rebuild the pre-KO swimming / 
-        // sneaking state that CdrKnockout already persisted since v0.6.0.
+        // Release the forced pose first, then rebuild the pre-KO swimming /
+        // sneaking state that CdrKnockout already persists.
         player.setPose(Pose.STANDING, false);
         player.setSwimming(session.originalSwimming());
         player.setSneaking(session.originalSneaking());
