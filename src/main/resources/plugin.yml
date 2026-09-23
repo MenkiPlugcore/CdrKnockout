@@ -3,7 +3,7 @@ version: '${project.version}'
 main: dev.cadera.cdrknockout.CdrKnockoutPlugin
 api-version: '1.21'
 author: CADERA
-description: Modular knockout, revive, execution, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, stability, and AxGraves engine for Paper servers.
+description: Modular knockout, revive, execution, gameplay expansion, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, stability, and AxGraves engine for Paper servers.
 website: https://github.com/MenkiPlugcore/CdrKnockout
 softdepend: [Vault, AuraSkills, AxGraves, Geyser-Spigot, floodgate, PlaceholderAPI]
 
@@ -17,6 +17,22 @@ commands:
     description: Give up while KNOCKED and enter real death.
     usage: /giveup
     permission: cdrknockout.giveup
+  selfrevive:
+    description: Start self revive while KNOCKED when requirements are met.
+    usage: /selfrevive
+    permission: cdrknockout.selfrevive
+  distress:
+    description: Send a distress signal to nearby players while KNOCKED.
+    usage: /distress
+    permission: cdrknockout.distress
+  kostats:
+    description: Show CdrKnockout gameplay statistics.
+    usage: /kostats [player]
+    permission: cdrknockout.stats
+  medkit:
+    description: Give CdrKnockout Medical Kit items.
+    usage: /medkit <player> [amount]
+    permission: cdrknockout.medkit.give
 
 permissions:
   cdrknockout.command:
@@ -32,20 +48,29 @@ permissions:
   cdrknockout.command.status:
     default: op
   cdrknockout.command.compat:
-    description: Show AxGraves, Geyser, and Floodgate compatibility diagnostics.
     default: op
   cdrknockout.command.platform:
-    description: Show detected client platform and active knockout pose mode for a player.
     default: op
   cdrknockout.bypass:
-    description: Prevent automatic lethal damage from entering knockout.
     default: false
   cdrknockout.revive.special:
-    description: Example permission requirement for revive.
     default: false
   cdrknockout.execute:
-    description: Allows a player to execute KNOCKED players when execution is enabled.
     default: true
   cdrknockout.giveup:
-    description: Allows a knocked player to use /giveup.
     default: true
+  cdrknockout.selfrevive:
+    default: true
+  cdrknockout.distress:
+    default: true
+  cdrknockout.distress.receive:
+    default: true
+  cdrknockout.medic:
+    description: Allows use of CdrKnockout Medical Kits as a medic role.
+    default: false
+  cdrknockout.medkit.give:
+    default: op
+  cdrknockout.stats:
+    default: true
+  cdrknockout.stats.others:
+    default: op
