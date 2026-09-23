@@ -21,11 +21,11 @@ Persistent `knockouts.yml`, relog/restart/reload recovery, configurable offline 
 ## ✅ v0.4.0 — Execution System
 Passive execution channel tanpa klik: executor maksimal 1 block, sneak + execution item, progress ActionBar, cancellation guards, revive/execution mutual exclusion, permission, dan managed real-death flow yang tetap kompatibel dengan AxGraves.
 
-## v0.5.0 — Carry System
-Carry/drop sebagai engine terpisah dari pose.
+## ⏭ v0.5.0 — Carry System — SKIPPED
+Carry/drop sengaja tidak dilanjutkan agar pose KO tetap sederhana, stabil, dan tidak bergantung pada passenger/ArmorStand mechanics.
 
-## v0.6.0 — Java & Bedrock Compatibility
-Geyser/Floodgate testing, pose fallback, UI/sound parity.
+## ✅ v0.6.0 — Java & Bedrock Compatibility
+Reflective Geyser/Floodgate client detection, platform-aware pose mode `SWIMMING/CROUCH/NONE`, persisted pose state, softdepend Geyser/Floodgate, `/cdrko platform`, dan compatibility diagnostics. Passive revive/execution tetap no-click sehingga aman untuk Java maupun Bedrock.
 
 ## v0.7.0 — API & Expansion
 Public API, custom events, PlaceholderAPI.
