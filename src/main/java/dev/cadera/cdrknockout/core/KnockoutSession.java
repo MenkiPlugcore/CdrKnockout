@@ -18,6 +18,7 @@ public final class KnockoutSession {
     private long expiresAtMillis;
     private Location anchor;
     private final boolean originalSwimming;
+    private final boolean originalSneaking;
     private final Map<PotionEffectType, PotionEffect> previousEffects;
     private final Set<PotionEffectType> managedEffects;
     private final Set<Integer> sentWarningThresholds = new HashSet<>();
@@ -31,10 +32,11 @@ public final class KnockoutSession {
             long expiresAtMillis,
             Location anchor,
             boolean originalSwimming,
+            boolean originalSneaking,
             Map<PotionEffectType, PotionEffect> previousEffects,
             Set<PotionEffectType> managedEffects
     ) {
-        this(playerId, startedAtMillis, expiresAtMillis, anchor, originalSwimming,
+        this(playerId, startedAtMillis, expiresAtMillis, anchor, originalSwimming, originalSneaking,
                 previousEffects, managedEffects, 0L);
     }
 
@@ -44,6 +46,7 @@ public final class KnockoutSession {
             long expiresAtMillis,
             Location anchor,
             boolean originalSwimming,
+            boolean originalSneaking,
             Map<PotionEffectType, PotionEffect> previousEffects,
             Set<PotionEffectType> managedEffects,
             long offlineSinceMillis
@@ -53,6 +56,7 @@ public final class KnockoutSession {
         this.expiresAtMillis = expiresAtMillis;
         this.anchor = anchor.clone();
         this.originalSwimming = originalSwimming;
+        this.originalSneaking = originalSneaking;
         this.previousEffects = Collections.unmodifiableMap(new HashMap<>(previousEffects));
         this.managedEffects = Collections.unmodifiableSet(new HashSet<>(managedEffects));
         this.offlineSinceMillis = Math.max(0L, offlineSinceMillis);
@@ -82,6 +86,10 @@ public final class KnockoutSession {
 
     public boolean originalSwimming() {
         return originalSwimming;
+    }
+
+    public boolean originalSneaking() {
+        return originalSneaking;
     }
 
     public Map<PotionEffectType, PotionEffect> previousEffects() {
