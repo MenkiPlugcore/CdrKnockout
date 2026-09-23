@@ -3,14 +3,14 @@ version: '${project.version}'
 main: dev.cadera.cdrknockout.CdrKnockoutPlugin
 api-version: '1.21'
 author: CADERA
-description: Modular knockout, revive, execution, gameplay expansion, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, stability, and AxGraves engine for Paper servers.
+description: Production-stable modular knockout, revive, execution, gameplay expansion, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, diagnostics, and AxGraves engine for Paper servers.
 website: https://github.com/MenkiPlugcore/CdrKnockout
 softdepend: [Vault, AuraSkills, AxGraves, Geyser-Spigot, floodgate, PlaceholderAPI]
 
 commands:
   cdrko:
     description: CdrKnockout administration command.
-    usage: /cdrko <reload|knockout|revive|kill|status|compat|platform> [player]
+    usage: /cdrko <reload|knockout|revive|kill|status|compat|platform|doctor> [player]
     aliases: [cdrknockout, cko]
     permission: cdrknockout.command
   giveup:
@@ -50,6 +50,9 @@ permissions:
   cdrknockout.command.compat:
     default: op
   cdrknockout.command.platform:
+    default: op
+  cdrknockout.command.doctor:
+    description: Run production readiness and runtime diagnostics.
     default: op
   cdrknockout.bypass:
     default: false

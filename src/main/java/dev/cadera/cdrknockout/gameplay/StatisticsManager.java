@@ -4,6 +4,7 @@ import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.api.event.CdrKnockoutDeathEvent;
 import dev.cadera.cdrknockout.api.event.CdrKnockoutEvent;
 import dev.cadera.cdrknockout.api.event.CdrRevivedEvent;
+import dev.cadera.cdrknockout.util.AtomicYamlStorage;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -12,7 +13,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -24,6 +24,7 @@ public final class StatisticsManager implements Listener {
     private final Map<UUID, MutableStats> stats = new LinkedHashMap<>();
     private BukkitTask autosaveTask;
     private boolean dirty;
+    private boolean runtimeEnabled;
 
     public StatisticsManager(CdrKnockoutPlugin plugin) {
         this.plugin = plugin;
@@ -34,26 +35,43 @@ public final class StatisticsManager implements Listener {
         shutdownTask();
         stats.clear();
         dirty = false;
-        if (!enabled()) {
+        runtimeEnabled = enabled();
+        if (!runtimeEnabled) {
             return;
         }
         load();
-        long ticks = Math.max(40L, plugin.getConfig().getLong("gameplay.statistics.autosave-ticks", 200L));
-        autosaveTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::flushIfDirty, ticks, ticks);
+        scheduleAutosave();
     }
 
     public void reload() {
         shutdownTask();
-        if (!enabled()) {
+        boolean nextEnabled = enabled();
+
+        if (!nextEnabled) {
+            if (runtimeEnabled && dirty) {
+                save();
+            }
+            stats.clear();
+            dirty = false;
+            runtimeEnabled = false;
             return;
         }
-        long ticks = Math.max(40L, plugin.getConfig().getLong("gameplay.statistics.autosave-ticks", 200L));
-        autosaveTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::flushIfDirty, ticks, ticks);
+
+        if (!runtimeEnabled) {
+            stats.clear();
+            dirty = false;
+            load();
+        }
+        runtimeEnabled = true;
+        scheduleAutosave();
     }
 
     public void shutdown() {
         shutdownTask();
-        flushIfDirty();
+        if (runtimeEnabled && dirty) {
+            save();
+        }
+        runtimeEnabled = false;
     }
 
     public boolean enabled() {
@@ -114,6 +132,11 @@ public final class StatisticsManager implements Listener {
         dirty = true;
     }
 
+    private void scheduleAutosave() {
+        long ticks = Math.max(40L, plugin.getConfig().getLong("gameplay.statistics.autosave-ticks", 200L));
+        autosaveTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::flushIfDirty, ticks, ticks);
+    }
+
     private void load() {
         if (!file.exists()) {
             return;
@@ -146,19 +169,15 @@ public final class StatisticsManager implements Listener {
     }
 
     private void flushIfDirty() {
-        if (!enabled() || !dirty) {
+        if (!runtimeEnabled || !dirty) {
             return;
         }
         save();
     }
 
     private void save() {
-        if (!plugin.getDataFolder().exists() && !plugin.getDataFolder().mkdirs()) {
-            plugin.getLogger().warning("Could not create plugin data folder for statistics.");
-            return;
-        }
         YamlConfiguration yaml = new YamlConfiguration();
-        yaml.set("version", 1);
+        yaml.set("version", 2);
         for (Map.Entry<UUID, MutableStats> entry : stats.entrySet()) {
             String base = "players." + entry.getKey();
             MutableStats value = entry.getValue();
@@ -170,11 +189,8 @@ public final class StatisticsManager implements Listener {
             yaml.set(base + ".distress-signals", value.distressSignals);
             yaml.set(base + ".medical-kit-uses", value.medicalKitUses);
         }
-        try {
-            yaml.save(file);
+        if (AtomicYamlStorage.save(yaml, file, plugin.getLogger())) {
             dirty = false;
-        } catch (IOException exception) {
-            plugin.getLogger().severe("Failed to save statistics.yml: " + exception.getMessage());
         }
     }
 

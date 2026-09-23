@@ -1,8 +1,19 @@
-# CdrKnockout v0.8.0
-# Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death
-# + AxGraves + Stability + Execution + Java/Bedrock + API + Gameplay Expansion
+# CdrKnockout v1.0.0 — Production Stable
+# Paper 1.21.11 + Java 21
 
+config-version: 1
 debug: false
+
+# Production hardening and operator diagnostics.
+production:
+  expected-minecraft-version: '1.21.11'
+  warn-unsupported-minecraft-version: true
+  startup-diagnostics: true
+  log-on-reload: true
+
+  # Built-in recovery/control commands tetap dapat dipakai saat KNOCKED walau
+  # config lama belum memiliki command tersebut di allowed list.
+  always-allow-knocked-plugin-commands: true
 
 knockout:
   enabled: true
@@ -61,6 +72,7 @@ knockout:
         - giveup
         - selfrevive
         - distress
+        - kostats
         - cdrko
         - cdrknockout
         - cko
@@ -268,9 +280,7 @@ api:
 placeholderapi:
   enabled: true
 
-# v0.8.0 Gameplay Expansion
 gameplay:
-  # Passive self revive: cukup pegang item saat KNOCKED; tidak perlu klik.
   self-revive:
     enabled: true
     auto-start: true
@@ -295,8 +305,6 @@ gameplay:
       success: '&a&lSELF REVIVE SUCCESS'
       cancelled: '&c&lSELF REVIVE INTERRUPTED'
 
-  # Role medic + custom Medical Kit.
-  # Medkit default dapat melewati requirement revive biasa, tetapi tetap memakai channel revive normal.
   medical:
     enabled: true
     require-role-permission: true

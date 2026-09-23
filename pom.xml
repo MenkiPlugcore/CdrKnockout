@@ -3,9 +3,9 @@
 
   <groupId>store.cadera</groupId>
   <artifactId>CdrKnockout</artifactId>
-  <version>0.8.0</version>
+  <version>1.0.0</version>
   <name>CdrKnockout</name>
-  <description>Knockout, revive, execution, gameplay expansion, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, and AxGraves compatibility for Paper servers by CADERA.</description>
+  <description>Production-stable knockout, revive, execution, gameplay expansion, diagnostics, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, and AxGraves compatibility for Paper servers by CADERA.</description>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>

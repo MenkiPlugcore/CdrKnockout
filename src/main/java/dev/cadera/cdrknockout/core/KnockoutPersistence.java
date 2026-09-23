@@ -1,6 +1,7 @@
 package dev.cadera.cdrknockout.core;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
+import dev.cadera.cdrknockout.util.AtomicYamlStorage;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -10,7 +11,6 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +27,7 @@ public final class KnockoutPersistence {
     private final Map<UUID, StoredSession> stored = new LinkedHashMap<>();
     private BukkitTask autosaveTask;
     private boolean dirty;
+    private boolean runtimeEnabled;
 
     public KnockoutPersistence(CdrKnockoutPlugin plugin) {
         this.plugin = plugin;
@@ -37,44 +38,47 @@ public final class KnockoutPersistence {
         stopAutosave();
         stored.clear();
         dirty = false;
+        runtimeEnabled = enabled();
 
-        if (!enabled()) {
+        if (!runtimeEnabled) {
             return;
         }
 
         loadFromDisk();
-        long ticks = Math.max(20L, plugin.getConfig().getLong(
-                "stability.persistence.autosave-ticks",
-                40L
-        ));
-        autosaveTask = plugin.getServer().getScheduler().runTaskTimer(
-                plugin,
-                this::flushIfDirty,
-                ticks,
-                ticks
-        );
+        scheduleAutosave();
     }
 
     public void reload() {
         stopAutosave();
-        if (!enabled()) {
+        boolean nextEnabled = enabled();
+
+        if (!nextEnabled) {
+            if (runtimeEnabled && dirty) {
+                saveToDisk();
+            }
+            stored.clear();
+            dirty = false;
+            runtimeEnabled = false;
             return;
         }
-        long ticks = Math.max(20L, plugin.getConfig().getLong(
-                "stability.persistence.autosave-ticks",
-                40L
-        ));
-        autosaveTask = plugin.getServer().getScheduler().runTaskTimer(
-                plugin,
-                this::flushIfDirty,
-                ticks,
-                ticks
-        );
+
+        // When persistence is enabled at runtime after being disabled, do not
+        // resurrect stale disk sessions. KnockoutManager#onReload will track
+        // the currently authoritative runtime sessions immediately afterwards.
+        if (!runtimeEnabled) {
+            stored.clear();
+            dirty = false;
+        }
+        runtimeEnabled = true;
+        scheduleAutosave();
     }
 
     public void shutdown() {
         stopAutosave();
-        flushIfDirty();
+        if (runtimeEnabled && dirty) {
+            saveToDisk();
+        }
+        runtimeEnabled = false;
     }
 
     public boolean enabled() {
@@ -114,6 +118,19 @@ public final class KnockoutPersistence {
         saveToDisk();
     }
 
+    private void scheduleAutosave() {
+        long ticks = Math.max(20L, plugin.getConfig().getLong(
+                "stability.persistence.autosave-ticks",
+                40L
+        ));
+        autosaveTask = plugin.getServer().getScheduler().runTaskTimer(
+                plugin,
+                this::flushIfDirty,
+                ticks,
+                ticks
+        );
+    }
+
     private void stopAutosave() {
         if (autosaveTask != null) {
             autosaveTask.cancel();
@@ -122,7 +139,7 @@ public final class KnockoutPersistence {
     }
 
     private void flushIfDirty() {
-        if (enabled() && dirty) {
+        if (runtimeEnabled && dirty) {
             saveToDisk();
         }
     }
@@ -216,13 +233,8 @@ public final class KnockoutPersistence {
     }
 
     private void saveToDisk() {
-        if (!plugin.getDataFolder().exists() && !plugin.getDataFolder().mkdirs()) {
-            plugin.getLogger().warning("Could not create plugin data folder for knockout persistence.");
-            return;
-        }
-
         YamlConfiguration yaml = new YamlConfiguration();
-        yaml.set("version", 2);
+        yaml.set("version", 3);
 
         for (Map.Entry<UUID, StoredSession> entry : stored.entrySet()) {
             String base = "sessions." + entry.getKey();
@@ -264,11 +276,8 @@ public final class KnockoutPersistence {
             }
         }
 
-        try {
-            yaml.save(file);
+        if (AtomicYamlStorage.save(yaml, file, plugin.getLogger())) {
             dirty = false;
-        } catch (IOException exception) {
-            plugin.getLogger().severe("Failed to save knockouts.yml: " + exception.getMessage());
         }
     }
 
