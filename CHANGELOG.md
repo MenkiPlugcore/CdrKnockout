@@ -2,6 +2,25 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [0.8.0] - 2026-09-23
+
+### Added
+- Self-revive system dengan auto-start atau `/selfrevive`, configurable item, channel, cooldown, cancel-on-damage, result health, dan ActionBar.
+- Medic role permission `cdrknockout.medic`.
+- PDC-marked Medical Kit + admin command `/medkit <player> [amount]`.
+- Medical Kit dapat melewati requirement revive standar secara configurable dan hanya dikonsumsi saat revive sukses.
+- Distress signal `/distress` untuk player KNOCKED dengan radius, cooldown, receiver filtering, coordinates, dan sound.
+- Persistent gameplay statistics di `statistics.yml`.
+- `/kostats [player]` untuk membaca statistik KO/revive/death/self-revive/distress/medkit.
+- PlaceholderAPI gameplay/statistics additions.
+- Dokumentasi `docs/GAMEPLAY-EXPANSION.md` dan regression checklist.
+
+### Compatibility
+- Self-revive memakai core `KnockoutManager.revive(...)`, sehingga pose/effect/persistence cleanup tetap satu jalur.
+- Medical Kit menggunakan passive revive channel existing; tidak membuat sistem revive kedua.
+- Bleedout, execution, giveup, dan real death/AxGraves flow tidak diubah.
+- Gameplay expansion tetap usable pada Java dan Bedrock karena interaction utamanya tidak bergantung pada click-only input.
+
 ## [0.7.0] - 2026-09-23
 
 ### Added
