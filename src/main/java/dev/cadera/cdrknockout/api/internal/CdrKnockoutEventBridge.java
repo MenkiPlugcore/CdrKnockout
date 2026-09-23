@@ -40,7 +40,23 @@ public final class CdrKnockoutEventBridge implements Listener {
     }
 
     public void start() {
-        shutdown();
+        active.clear();
+        recoveryCandidates.clear();
+        restartTicker();
+    }
+
+    public void reload() {
+        restartTicker();
+    }
+
+    public void shutdown() {
+        stopTicker();
+        active.clear();
+        recoveryCandidates.clear();
+    }
+
+    private void restartTicker() {
+        stopTicker();
         if (!plugin.getConfig().getBoolean("api.events.enabled", true)) {
             return;
         }
@@ -48,17 +64,11 @@ public final class CdrKnockoutEventBridge implements Listener {
         ticker = plugin.getServer().getScheduler().runTaskTimer(plugin, this::poll, ticks, ticks);
     }
 
-    public void reload() {
-        start();
-    }
-
-    public void shutdown() {
+    private void stopTicker() {
         if (ticker != null) {
             ticker.cancel();
             ticker = null;
         }
-        active.clear();
-        recoveryCandidates.clear();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
