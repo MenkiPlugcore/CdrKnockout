@@ -2,6 +2,21 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [1.0.1] - 2026-09-23
+
+### License integrity
+- Added mandatory generated `plugins/CdrKnockout/LICENSE.txt` using the bundled **MENKIESTES SOFTWARE LICENSE v1.0** text.
+- Added installation marker `.cdrknockout-license-state.yml` in the server `plugins/` directory.
+- Existing valid installs without a marker are migrated automatically on first v1.0.1 startup.
+- Missing or modified `LICENSE.txt` now causes startup failure with `LICENSE INTEGRITY FAILURE`.
+- Runtime monitor re-checks license integrity and disables CdrKnockout if the file is deleted or changed while the server is online.
+- Added `production.license-integrity-check-ticks` to control the runtime check interval; the guard itself is intentionally non-disableable via config.
+- CI now verifies `LicenseGuard.class` and the bundled `license-template.txt` are present in the release JAR.
+
+### Notes
+- This is a local integrity/tamper guard, not an online activation or remote DRM service.
+- Core knockout, revive, execution, crossplay, API, and AxGraves behaviour are unchanged from v1.0.0.
+
 ## [1.0.0] - 2026-09-23
 
 ### Production hardening
