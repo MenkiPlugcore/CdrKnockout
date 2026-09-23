@@ -2,7 +2,7 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v1.0.0 — Production Stable**
+Versi saat ini: **v1.0.1 — Production Stable**
 
 Target utama: **Paper 1.21.11 + Java 21**, dengan dukungan Java Edition dan Bedrock melalui Geyser/Floodgate.
 
@@ -35,10 +35,11 @@ Selama player masih `KNOCKED`, inventory/EXP tidak dipindahkan oleh CdrKnockout 
 - Public API + custom Bukkit events.
 - PlaceholderAPI expansion.
 - Self-revive, medic role, PDC Medical Kit, distress signal, persistent statistics.
+- Mandatory runtime license integrity guard.
 
-## Production hardening v1.0.0
+## Production hardening
 
-v1.0.0 menambahkan lapisan hardening untuk penggunaan live:
+v1.0.x memiliki lapisan hardening untuk penggunaan live:
 
 - `knockouts.yml` dan `statistics.yml` ditulis menggunakan temporary file + atomic replace bila filesystem mendukungnya.
 - Runtime reload persistence/statistics diperkeras supaya enable/disable tidak meninggalkan state memory yang salah.
@@ -49,6 +50,25 @@ v1.0.0 menambahkan lapisan hardening untuk penggunaan live:
 - CI memakai `mvn clean verify` dan memvalidasi isi/version JAR sebelum artifact di-upload.
 
 Dokumentasi acceptance test: `docs/PRODUCTION-STABLE.md`.
+
+## Runtime License Integrity — v1.0.1
+
+Pada startup valid pertama, CdrKnockout otomatis membuat:
+
+```text
+plugins/CdrKnockout/LICENSE.txt
+```
+
+Isi file tersebut adalah **MENKIESTES SOFTWARE LICENSE v1.0** yang dibundel di dalam JAR. Plugin juga membuat installation marker internal di folder `plugins/` untuk membedakan instalasi yang sudah pernah diinisialisasi.
+
+`LICENSE.txt` bersifat wajib. Jika file dihapus atau isinya dimodifikasi:
+
+- saat startup: plugin gagal enable dengan `LICENSE INTEGRITY FAILURE`;
+- saat server sedang berjalan: integrity monitor mendeteksi perubahan lalu menonaktifkan CdrKnockout.
+
+Interval pengecekan runtime default 100 ticks dan dapat diubah melalui `production.license-integrity-check-ticks`. Kewajiban license-nya sendiri tidak dapat dimatikan lewat config.
+
+Sistem ini adalah local integrity/tamper guard, bukan online activation/DRM server.
 
 ## Default revive
 
@@ -127,12 +147,12 @@ mvn clean verify
 Output:
 
 ```text
-target/CdrKnockout-1.0.0.jar
+target/CdrKnockout-1.0.1.jar
 ```
 
 ## Deployment note
 
-JAR v1.0.0 adalah release production dari sisi source/build. Sebelum mengganti plugin di server live, jalankan regression checklist pada staging/maintenance window, terutama Java + Bedrock, restart/relog, execution, self-revive, dan real death -> AxGraves.
+JAR v1.0.1 adalah patch production v1.0.0 dengan runtime license-integrity guard. Saat upgrade dari v1.0.0, startup pertama v1.0.1 akan membuat `LICENSE.txt` dan marker instalasi secara otomatis.
 
 ## Carry System
 
