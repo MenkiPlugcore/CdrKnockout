@@ -2,6 +2,33 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [0.6.0] - 2026-09-23
+
+### Added
+- Java/Bedrock client detection tanpa hard dependency.
+- Reflective Geyser API hook menggunakan `GeyserApi#isBedrockPlayer(UUID)` ketika tersedia.
+- Reflective Floodgate API fallback menggunakan `FloodgateApi#isFloodgatePlayer(UUID)` ketika tersedia.
+- Platform-aware knockout pose modes: `SWIMMING`, `CROUCH`, `NONE`.
+- Config `compatibility.client.detection.*` dan `compatibility.client.pose.*`.
+- `/cdrko platform <player>` untuk melihat platform, detector, Geyser/Floodgate version, dan active KO pose.
+- `/cdrko compat` sekarang juga menampilkan diagnostics Geyser/Floodgate.
+- `Geyser-Spigot` dan `floodgate` sebagai optional softdepend.
+- Persisted original sneaking state agar crossplay pose dapat dipulihkan setelah revive/recovery.
+
+### Changed
+- Core pose enforcement sekarang melalui `PoseEngine` dan tidak lagi hard-coded ke swimming untuk semua client.
+- `knockouts.yml` persistence format naik ke version 2, tetap backward-compatible dengan data lama.
+- Build version lompat dari `0.4.0` ke `0.6.0` karena milestone Carry System dilewati.
+
+### Skipped
+- `v0.5.0 — Carry System` tidak dilanjutkan agar CdrKnockout tidak bergantung pada passenger/ArmorStand mechanics yang berisiko merusak pose dan crossplay behaviour.
+
+### Compatibility
+- Passive revive tetap proximity + sneak + item tanpa klik, sehingga control Java/Bedrock konsisten.
+- Execution tetap proximity + sneak + sword tanpa klik.
+- Standard Paper ActionBar/title/sound flow dipertahankan agar dapat diterjemahkan Geyser.
+- AxGraves managed real-death path tidak diubah.
+
 ## [0.4.0] - 2026-09-22
 
 ### Added
