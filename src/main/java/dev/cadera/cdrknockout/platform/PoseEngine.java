@@ -2,24 +2,32 @@ package dev.cadera.cdrknockout.platform;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutSession;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Pose;
 
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Applies the visual body pose used while a player is KNOCKED.
  *
- * Paper 1.21.11 exposes Entity#setPose(Pose, boolean). The previous
- * implementation only toggled Player#setSwimming(true), which changes the
- * swimming state but does not reliably force the client-visible body pose on
- * land. v1.0.2 keeps the swimming state for compatibility and additionally
- * fixes the native SWIMMING pose so the body is explicitly rendered prone.
+ * Paper can force the server-side/player-observer pose with setPose(..., true),
+ * but the local Java client can still render its own player using its locally
+ * calculated standing pose. v1.0.3 therefore combines the fixed Paper pose
+ * with a client-only invisible collision trigger at the player's head block.
+ * The fake block exists only for the knocked Java client and is restored when
+ * the KO state ends. No world block is modified.
  */
 public final class PoseEngine {
 
     private final CdrKnockoutPlugin plugin;
     private final ClientPlatformResolver platformResolver;
+    private final Map<UUID, Location> selfViewCollisionBlocks = new HashMap<>();
 
     public PoseEngine(CdrKnockoutPlugin plugin, ClientPlatformResolver platformResolver) {
         this.plugin = plugin;
@@ -44,9 +52,17 @@ public final class PoseEngine {
     }
 
     private void applyProne(Player player) {
-        // No passengers, ArmorStands, mounts, or fake carrier entities are used.
-        // Keep the vanilla swimming state for Java/Geyser compatibility, then
-        // explicitly fix the body pose so it cannot snap back to STANDING on land.
+        // Local Java players are client-authoritative for parts of their own
+        // pose rendering. A client-only barrier in the head block makes the
+        // vanilla client conclude it cannot stand, which activates its native
+        // crawl rendering. Other players continue to receive the fixed server
+        // Pose.SWIMMING metadata below.
+        if (shouldUseJavaSelfViewTrigger(player)) {
+            ensureSelfViewCollision(player);
+        } else {
+            clearSelfViewCollision(player);
+        }
+
         if (player.isSneaking()) {
             player.setSneaking(false);
         }
@@ -59,6 +75,7 @@ public final class PoseEngine {
     }
 
     private void applyCrouch(Player player) {
+        clearSelfViewCollision(player);
         if (player.isSwimming()) {
             player.setSwimming(false);
         }
@@ -71,7 +88,14 @@ public final class PoseEngine {
     }
 
     public void restore(Player player, KnockoutSession session) {
-        if (player == null || session == null || !player.isOnline() || player.isDead()) {
+        if (player == null || session == null) {
+            return;
+        }
+
+        // Always forget/restore the client-only collision, including quit paths.
+        clearSelfViewCollision(player);
+
+        if (!player.isOnline() || player.isDead()) {
             return;
         }
 
@@ -92,12 +116,73 @@ public final class PoseEngine {
         }
     }
 
+    private boolean shouldUseJavaSelfViewTrigger(Player player) {
+        if (!plugin.getConfig().getBoolean(
+                "compatibility.client.pose.java-self-view-crawl-trigger",
+                true
+        )) {
+            return false;
+        }
+
+        // UNKNOWN is treated as Java for this workaround. On a server without
+        // Geyser/Floodgate hooks, a normal Java client resolves as UNKNOWN.
+        return platformResolver.resolve(player) != ClientPlatform.BEDROCK;
+    }
+
+    private void ensureSelfViewCollision(Player player) {
+        Location target = player.getLocation().getBlock().getLocation().add(0.0D, 1.0D, 0.0D);
+        UUID uuid = player.getUniqueId();
+        Location previous = selfViewCollisionBlocks.get(uuid);
+
+        if (previous != null && !sameBlock(previous, target)) {
+            restoreRealBlock(player, previous);
+            selfViewCollisionBlocks.remove(uuid);
+        }
+
+        Block realBlock = target.getBlock();
+        if (!realBlock.isPassable()) {
+            // The real world already provides the collision needed by the
+            // local client. Never hide/replace a real solid block with a fake.
+            selfViewCollisionBlocks.remove(uuid);
+            return;
+        }
+
+        // Barrier is invisible in normal gameplay and has a full collision
+        // shape. sendBlockChange affects only this player's client.
+        player.sendBlockChange(target, Material.BARRIER.createBlockData());
+        selfViewCollisionBlocks.put(uuid, target.clone());
+    }
+
+    private void clearSelfViewCollision(Player player) {
+        Location location = selfViewCollisionBlocks.remove(player.getUniqueId());
+        if (location != null && player.isOnline()) {
+            restoreRealBlock(player, location);
+        }
+    }
+
+    private void restoreRealBlock(Player player, Location location) {
+        if (location.getWorld() == null || !location.getWorld().equals(player.getWorld())) {
+            return;
+        }
+        player.sendBlockChange(location, location.getBlock().getBlockData());
+    }
+
+    private boolean sameBlock(Location first, Location second) {
+        if (first.getWorld() == null || second.getWorld() == null) {
+            return false;
+        }
+        return first.getWorld().equals(second.getWorld())
+                && first.getBlockX() == second.getBlockX()
+                && first.getBlockY() == second.getBlockY()
+                && first.getBlockZ() == second.getBlockZ();
+    }
+
     public String modeName(Player player) {
         return modeFor(player).name();
     }
 
     public String engineName() {
-        return "PAPER_FIXED_POSE";
+        return "PAPER_FIXED_POSE+JAVA_SELF_VIEW_COLLISION";
     }
 
     public PoseMode modeFor(Player player) {
