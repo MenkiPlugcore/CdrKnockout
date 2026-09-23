@@ -1,4 +1,4 @@
-# CdrKnockout v1.0.1 — Production Stable
+# CdrKnockout v1.0.2 — Production Stable
 # Paper 1.21.11 + Java 21
 
 config-version: 1
@@ -36,6 +36,8 @@ knockout:
     mode: ALL
     list: []
 
+  # v1.0.2: SWIMMING uses Paper's fixed native SWIMMING pose, producing the
+  # crawl/prone visual even while the player is on land. No passenger or ArmorStand is used.
   pose:
     enabled: true
     mode: SWIMMING
