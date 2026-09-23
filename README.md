@@ -2,7 +2,7 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v1.0.1 — Production Stable**
+Versi saat ini: **v1.0.2 — Production Stable**
 
 Target utama: **Paper 1.21.11 + Java 21**, dengan dukungan Java Edition dan Bedrock melalui Geyser/Floodgate.
 
@@ -11,6 +11,7 @@ Target utama: **Paper 1.21.11 + Java 21**, dengan dukungan Java Edition dan Bedr
 ```text
 lethal damage
   -> KNOCKED
+  -> fixed prone pose
   -> revive / self-revive
      atau
   -> bleedout / fatal downed damage / giveup / execution
@@ -24,7 +25,7 @@ Selama player masih `KNOCKED`, inventory/EXP tidak dipindahkan oleh CdrKnockout 
 ## Fitur utama
 
 - Lethal-damage interception dan state KNOCKED.
-- Prone/crawl-style pose + movement lock.
+- Fixed prone/crawl-style pose + movement lock.
 - Passive proximity revive tanpa klik.
 - Requirement engine: item, XP, Vault, AuraSkills, permission; mode ALL/ANY.
 - Bleedout, heartbeat, warning, environmental downed damage, `/giveup`.
@@ -36,6 +37,26 @@ Selama player masih `KNOCKED`, inventory/EXP tidak dipindahkan oleh CdrKnockout 
 - PlaceholderAPI expansion.
 - Self-revive, medic role, PDC Medical Kit, distress signal, persistent statistics.
 - Mandatory runtime license integrity guard.
+
+## v1.0.2 — Fixed Prone Pose
+
+Versi sebelumnya hanya memakai `Player#setSwimming(true)` untuk mencoba membuat player terlihat tiarap. Pada player yang berada di darat, swimming state tersebut tidak selalu memaksa client menampilkan body pose SWIMMING sehingga korban KO dapat tetap terlihat berdiri.
+
+v1.0.2 memakai native Paper 1.21.11 `Entity#setPose(Pose, boolean)` dengan fixed pose:
+
+```text
+KNOCKED + SWIMMING mode
+        -> Pose.SWIMMING (fixed)
+        -> player terlihat crawl / prone di darat
+        -> pose terus dipertahankan selama KO
+        -> revive/death/quit
+        -> fixed pose dilepas
+        -> swimming/sneaking state sebelum KO dipulihkan
+```
+
+Pose ini tidak memakai ArmorStand, passenger, mount, atau fake carrier entity. Karena itu pose engine tetap terpisah dari sistem interaksi revive/execution.
+
+Default Java dan Bedrock tetap memakai `SWIMMING`. Jika Geyser build tertentu tidak merender pose tersebut dengan benar, `compatibility.client.pose.bedrock-mode` dapat diganti ke `CROUCH` sebagai fallback.
 
 ## Production hardening
 
@@ -51,7 +72,7 @@ v1.0.x memiliki lapisan hardening untuk penggunaan live:
 
 Dokumentasi acceptance test: `docs/PRODUCTION-STABLE.md`.
 
-## Runtime License Integrity — v1.0.1
+## Runtime License Integrity — v1.0.1+
 
 Pada startup valid pertama, CdrKnockout otomatis membuat:
 
@@ -147,12 +168,12 @@ mvn clean verify
 Output:
 
 ```text
-target/CdrKnockout-1.0.1.jar
+target/CdrKnockout-1.0.2.jar
 ```
 
 ## Deployment note
 
-JAR v1.0.1 adalah patch production v1.0.0 dengan runtime license-integrity guard. Saat upgrade dari v1.0.0, startup pertama v1.0.1 akan membuat `LICENSE.txt` dan marker instalasi secara otomatis.
+Saat upgrade dari v1.0.1, cukup ganti JAR. `LICENSE.txt`, marker lisensi, config, statistics, dan persisted knockout data tetap dipertahankan. Untuk pengujian pose, gunakan `/cdrko knockout <player>` lalu lihat player tersebut dari client lain agar visual third-person benar-benar terverifikasi.
 
 ## Carry System
 
