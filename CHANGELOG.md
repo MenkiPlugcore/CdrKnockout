@@ -2,6 +2,31 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [1.0.0] - 2026-09-23
+
+### Production hardening
+- `knockouts.yml` dan `statistics.yml` sekarang memakai temporary-file write + atomic replace bila filesystem mendukungnya.
+- Persistence dan statistics reload diperkeras agar enable/disable runtime tidak meninggalkan state memory yang stale.
+- Persistence format dinaikkan ke version 3; data v2 tetap dapat dibaca.
+- Statistics storage format dinaikkan ke version 2; data v1 tetap dapat dibaca.
+- Built-in CdrKnockout recovery/control commands tetap dapat digunakan saat KNOCKED walau config lama belum memasukkannya ke command allow-list.
+- Namespaced command label dinormalisasi sebelum command restriction diperiksa.
+
+### Diagnostics
+- Added `/cdrko doctor` + permission `cdrknockout.command.doctor`.
+- Startup/reload diagnostics untuk Java version, Minecraft target version, data-folder writeability, config enum penting, optional dependency, Geyser/Floodgate, PlaceholderAPI, AxGraves, persistence, dan statistics.
+- Added `production.*` configuration block.
+
+### CI / release
+- Maven version dinaikkan ke `1.0.0`.
+- CI memakai `mvn clean verify`.
+- CI memvalidasi JAR, main class, ProductionDiagnostics class, dan filtered `plugin.yml` version sebelum artifact di-upload.
+- Added production acceptance checklist `docs/PRODUCTION-STABLE.md`.
+
+### Compatibility
+- Core lethal interception, revive, execution, self-revive, API/events, Java/Bedrock pose handling, dan AxGraves real-death flow tetap mempertahankan behaviour v0.8.0.
+- Optional integrations tetap soft/fail-safe; kegagalan hook tidak mematikan core knockout.
+
 ## [0.8.0] - 2026-09-23
 
 ### Added
