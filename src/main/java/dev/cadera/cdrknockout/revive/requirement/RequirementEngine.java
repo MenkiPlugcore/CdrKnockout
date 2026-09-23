@@ -1,6 +1,8 @@
 package dev.cadera.cdrknockout.revive.requirement;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
+import dev.cadera.cdrknockout.gameplay.MedicalKitItems;
+import dev.cadera.cdrknockout.gameplay.StatisticsManager;
 import dev.cadera.cdrknockout.revive.requirement.hook.AuraSkillsHook;
 import dev.cadera.cdrknockout.revive.requirement.hook.VaultHook;
 import dev.cadera.cdrknockout.util.Messages;
@@ -20,12 +22,14 @@ public final class RequirementEngine {
     private final Messages messages;
     private final VaultHook vaultHook;
     private final AuraSkillsHook auraSkillsHook;
+    private final MedicalKitItems medicalKitItems;
 
     public RequirementEngine(CdrKnockoutPlugin plugin, Messages messages) {
         this.plugin = plugin;
         this.messages = messages;
         this.vaultHook = new VaultHook(plugin);
         this.auraSkillsHook = new AuraSkillsHook(plugin);
+        this.medicalKitItems = new MedicalKitItems(plugin);
     }
 
     public void reload() {
@@ -34,6 +38,10 @@ public final class RequirementEngine {
     }
 
     public RequirementResult evaluate(Player player) {
+        if (isMedicalKitBypass(player)) {
+            return RequirementResult.success(Set.of(RequirementType.ITEM));
+        }
+
         List<RequirementType> enabled = enabledRequirements();
         if (enabled.isEmpty()) {
             return RequirementResult.success(Set.of());
@@ -76,9 +84,16 @@ public final class RequirementEngine {
             }
         }
 
-        if (selected.contains(RequirementType.ITEM)
-                && plugin.getConfig().getBoolean("revive.requirements.item.consume-on-success", true)) {
-            consumeItem(player);
+        if (selected.contains(RequirementType.ITEM)) {
+            if (medicalKitItems.isEligibleMedic(player)) {
+                medicalKitItems.consumeOne(player);
+                StatisticsManager statistics = plugin.statistics();
+                if (statistics != null) {
+                    statistics.recordMedicalKitUse(player);
+                }
+            } else if (plugin.getConfig().getBoolean("revive.requirements.item.consume-on-success", true)) {
+                consumeItem(player);
+            }
         }
 
         if (selected.contains(RequirementType.XP_LEVEL)
@@ -96,6 +111,9 @@ public final class RequirementEngine {
     }
 
     public boolean matchesRequiredItem(ItemStack stack) {
+        if (stack != null && medicalKitItems.isMedicalKit(stack)) {
+            return true;
+        }
         if (!isItemRequirementEnabled()) {
             return true;
         }
@@ -106,16 +124,18 @@ public final class RequirementEngine {
     }
 
     public Material requiredMaterial() {
-        String configured = plugin.getConfig().getString(
-                "revive.requirements.item.material",
-                "GOLDEN_APPLE"
-        );
+        String configured = plugin.getConfig().getString("revive.requirements.item.material", "GOLDEN_APPLE");
         Material material = configured == null ? null : Material.matchMaterial(configured);
         return material == null ? Material.GOLDEN_APPLE : material;
     }
 
     public int requiredAmount() {
         return Math.max(1, plugin.getConfig().getInt("revive.requirements.item.amount", 1));
+    }
+
+    private boolean isMedicalKitBypass(Player player) {
+        return medicalKitItems.isEligibleMedic(player)
+                && plugin.getConfig().getBoolean("gameplay.medical.medkit.bypass-standard-requirements", true);
     }
 
     private RequirementResult evaluateAll(Player player, List<RequirementType> enabled) {
@@ -153,10 +173,7 @@ public final class RequirementEngine {
         List<RequirementType> enabled = new ArrayList<>();
         for (RequirementType type : RequirementType.values()) {
             boolean fallback = type == RequirementType.ITEM;
-            if (plugin.getConfig().getBoolean(
-                    "revive.requirements." + type.configKey() + ".enabled",
-                    fallback
-            )) {
+            if (plugin.getConfig().getBoolean("revive.requirements." + type.configKey() + ".enabled", fallback)) {
                 enabled.add(type);
             }
         }
@@ -191,7 +208,15 @@ public final class RequirementEngine {
     }
 
     private Check checkItem(Player player) {
-        if (matchesRequiredItem(player.getInventory().getItemInMainHand())) {
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (medicalKitItems.isMedicalKit(hand)) {
+            if (medicalKitItems.isEligibleMedic(player)) {
+                return Check.pass();
+            }
+            String permission = plugin.getConfig().getString("gameplay.medical.role-permission", "cdrknockout.medic");
+            return Check.fail(messages.format("revive-requirement-medic", "%permission%", permission == null ? "cdrknockout.medic" : permission));
+        }
+        if (matchesRequiredItem(hand)) {
             return Check.pass();
         }
         return Check.fail(messages.format(
@@ -210,10 +235,7 @@ public final class RequirementEngine {
         if (player.getLevel() >= required) {
             return Check.pass();
         }
-        return Check.fail(messages.format(
-                "revive-requirement-xp",
-                "%level%", Integer.toString(required)
-        ));
+        return Check.fail(messages.format("revive-requirement-xp", "%level%", Integer.toString(required)));
     }
 
     private Check checkMoney(Player player) {
@@ -224,19 +246,13 @@ public final class RequirementEngine {
         if (vaultHook.has(player, amount)) {
             return Check.pass();
         }
-        return Check.fail(messages.format(
-                "revive-requirement-money",
-                "%amount%", formatNumber(amount)
-        ));
+        return Check.fail(messages.format("revive-requirement-money", "%amount%", formatNumber(amount)));
     }
 
     private Check checkAuraSkills(Player player) {
         String skill = plugin.getConfig().getString("revive.requirements.auraskills.skill", "FIGHTING");
         skill = skill == null ? "FIGHTING" : skill.trim().toUpperCase(Locale.ROOT);
-        double minimum = Math.max(0.0D, plugin.getConfig().getDouble(
-                "revive.requirements.auraskills.minimum-level",
-                20.0D
-        ));
+        double minimum = Math.max(0.0D, plugin.getConfig().getDouble("revive.requirements.auraskills.minimum-level", 20.0D));
 
         if (!auraSkillsHook.isAvailable()) {
             return Check.fail(messages.format("revive-requirement-auraskills-unavailable"));
@@ -246,31 +262,21 @@ public final class RequirementEngine {
         if (actual >= minimum) {
             return Check.pass();
         }
-        return Check.fail(messages.format(
-                "revive-requirement-auraskills",
-                "%skill%", skill,
-                "%level%", formatNumber(minimum)
-        ));
+        return Check.fail(messages.format("revive-requirement-auraskills", "%skill%", skill, "%level%", formatNumber(minimum)));
     }
 
     private Check checkPermission(Player player) {
-        String node = plugin.getConfig().getString(
-                "revive.requirements.permission.node",
-                "cdrknockout.revive.special"
-        );
+        String node = plugin.getConfig().getString("revive.requirements.permission.node", "cdrknockout.revive.special");
         node = node == null ? "" : node.trim();
         if (!node.isBlank() && player.hasPermission(node)) {
             return Check.pass();
         }
-        return Check.fail(messages.format(
-                "revive-requirement-permission",
-                "%permission%", node.isBlank() ? "<empty>" : node
-        ));
+        return Check.fail(messages.format("revive-requirement-permission", "%permission%", node.isBlank() ? "<empty>" : node));
     }
 
     private void consumeItem(Player player) {
         ItemStack stack = player.getInventory().getItemInMainHand();
-        if (!matchesRequiredItem(stack)) {
+        if (stack == null || stack.getType() != requiredMaterial() || stack.getAmount() < requiredAmount()) {
             return;
         }
         int remaining = stack.getAmount() - requiredAmount();
