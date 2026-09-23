@@ -2,6 +2,7 @@ package dev.cadera.cdrknockout.command;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutManager;
+import dev.cadera.cdrknockout.diagnostic.ProductionDiagnostics;
 import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
 import dev.cadera.cdrknockout.platform.ClientPlatform;
 import dev.cadera.cdrknockout.platform.ClientPlatformResolver;
@@ -24,7 +25,7 @@ import java.util.Locale;
 public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
 
     private static final List<String> SUBCOMMANDS = List.of(
-            "reload", "knockout", "revive", "kill", "status", "compat", "platform"
+            "reload", "knockout", "revive", "kill", "status", "compat", "platform", "doctor"
     );
 
     private final CdrKnockoutPlugin plugin;
@@ -33,9 +34,10 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
     private final AxGravesCompatibility axGravesCompatibility;
     private final ClientPlatformResolver platformResolver;
     private final PoseEngine poseEngine;
+    private final ProductionDiagnostics diagnostics;
 
     public CdrKnockoutCommand(CdrKnockoutPlugin plugin, KnockoutManager manager, Messages messages) {
-        this(plugin, manager, messages, null, null, null);
+        this(plugin, manager, messages, null, null, null, null);
     }
 
     public CdrKnockoutCommand(
@@ -44,7 +46,7 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
             Messages messages,
             AxGravesCompatibility axGravesCompatibility
     ) {
-        this(plugin, manager, messages, axGravesCompatibility, null, null);
+        this(plugin, manager, messages, axGravesCompatibility, null, null, null);
     }
 
     public CdrKnockoutCommand(
@@ -55,12 +57,25 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
             ClientPlatformResolver platformResolver,
             PoseEngine poseEngine
     ) {
+        this(plugin, manager, messages, axGravesCompatibility, platformResolver, poseEngine, null);
+    }
+
+    public CdrKnockoutCommand(
+            CdrKnockoutPlugin plugin,
+            KnockoutManager manager,
+            Messages messages,
+            AxGravesCompatibility axGravesCompatibility,
+            ClientPlatformResolver platformResolver,
+            PoseEngine poseEngine,
+            ProductionDiagnostics diagnostics
+    ) {
         this.plugin = plugin;
         this.manager = manager;
         this.messages = messages;
         this.axGravesCompatibility = axGravesCompatibility;
         this.platformResolver = platformResolver;
         this.poseEngine = poseEngine;
+        this.diagnostics = diagnostics;
     }
 
     @Override
@@ -94,6 +109,14 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             handleCompatibility(sender);
+            return true;
+        }
+
+        if (sub.equals("doctor")) {
+            if (!checkPermission(sender, "cdrknockout.command.doctor")) {
+                return true;
+            }
+            handleDoctor(sender);
             return true;
         }
 
@@ -224,6 +247,14 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(messages.color("&8&m----------------------------------------"));
     }
 
+    private void handleDoctor(CommandSender sender) {
+        if (diagnostics == null) {
+            sender.sendMessage(messages.color("&8[&cCdrKnockout&8] &eProduction diagnostics are not initialized."));
+            return;
+        }
+        diagnostics.send(sender);
+    }
+
     private boolean checkPermission(CommandSender sender, String permission) {
         if (sender.hasPermission(permission)) {
             return true;
@@ -245,7 +276,8 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2
                 && !args[0].equalsIgnoreCase("reload")
-                && !args[0].equalsIgnoreCase("compat")) {
+                && !args[0].equalsIgnoreCase("compat")
+                && !args[0].equalsIgnoreCase("doctor")) {
             String prefix = args[1].toLowerCase(Locale.ROOT);
             List<String> names = new ArrayList<>();
             for (Player player : Bukkit.getOnlinePlayers()) {
