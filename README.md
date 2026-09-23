@@ -2,9 +2,9 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v0.6.0 — Java & Bedrock Compatibility**
+Versi saat ini: **v0.7.0 — API & Expansion**
 
-> Status: alpha / development. Core knockout, passive proximity revive, requirement engine, bleedout/death, AxGraves compatibility, persistence/recovery, execution channel, dan Java/Bedrock client compatibility sudah tersedia.
+> Status: alpha / development. Core knockout, passive proximity revive, requirement engine, bleedout/death, AxGraves compatibility, persistence/recovery, execution, Java/Bedrock compatibility, public API, custom events, dan PlaceholderAPI expansion sudah tersedia.
 
 ## Target platform
 
@@ -16,6 +16,7 @@ Versi saat ini: **v0.6.0 — Java & Bedrock Compatibility**
 - Optional Vault + economy provider
 - Optional AuraSkills
 - Optional AxGraves
+- Optional PlaceholderAPI
 
 ## Core flow
 
@@ -69,54 +70,22 @@ Execution dan revive saling eksklusif. Execution selesai melalui managed real-de
 - Duplicate KO guard.
 - World-change reassert safety-net.
 
-## AxGraves Compatibility
+## Java & Bedrock Compatibility
 
-- AxGraves sebagai `softdepend`.
-- Runtime `GravePreSpawnEvent` guard.
-- Tidak ada grave saat hanya KNOCKED.
-- Managed death duplicate-grave guard.
-- Inventory/EXP grave tetap dikelola AxGraves.
-- `/cdrko compat` untuk diagnostics.
+CdrKnockout mendeteksi `JAVA / BEDROCK / UNKNOWN` melalui Geyser API dan fallback Floodgate API tanpa hard dependency.
 
-## v0.6.0 Java & Bedrock Compatibility
-
-CdrKnockout sekarang mendeteksi platform client tanpa hard dependency.
-
-Detection order:
-
-```text
-Geyser API
-  -> jika tersedia, cek isBedrockPlayer(UUID)
-Floodgate API
-  -> fallback cek isFloodgatePlayer(UUID)
-Tidak ada hook
-  -> UNKNOWN
-```
-
-Geyser/Floodgate diakses secara reflektif sehingga plugin tetap dapat berjalan di server Java-only.
-
-Pose KNOCKED sekarang configurable per platform:
+Pose dapat diatur per platform:
 
 ```yaml
 compatibility:
   client:
-    detection:
-      enabled: true
-      log-status: true
-
     pose:
       java-mode: SWIMMING
       bedrock-mode: SWIMMING
       unknown-mode: SWIMMING
 ```
 
-Mode pose:
-
-- `SWIMMING` — prone/crawl-style pose utama.
-- `CROUCH` — fallback untuk build Geyser/Bedrock yang tidak merender SWIMMING dengan benar.
-- `NONE` — tidak memaksa pose; movement lock/effect KO tetap aktif.
-
-Original swimming dan sneaking state disimpan sehingga pose dapat dipulihkan setelah revive/death/recovery.
+Mode: `SWIMMING`, `CROUCH`, `NONE`.
 
 Diagnostics:
 
@@ -125,13 +94,87 @@ Diagnostics:
 /cdrko platform <player>
 ```
 
-`/cdrko platform <player>` menampilkan hasil deteksi `JAVA / BEDROCK / UNKNOWN`, status hook Geyser/Floodgate, dan pose mode yang aktif untuk player tersebut.
+## AxGraves Compatibility
 
-Passive revive dan execution tetap no-click, sehingga tidak bergantung pada perbedaan click/touch control Java dan Bedrock.
+- AxGraves sebagai `softdepend`.
+- Runtime `GravePreSpawnEvent` guard.
+- Tidak ada grave saat hanya KNOCKED.
+- Managed death duplicate-grave guard.
+- Inventory/EXP grave tetap dikelola AxGraves.
+
+## v0.7.0 Public API
+
+Plugin lain dapat mengambil API melalui Bukkit ServicesManager:
+
+```java
+CdrKnockoutApi api = CdrKnockoutProvider.get();
+
+if (api.isKnocked(player)) {
+    long remaining = api.getRemainingSeconds(player);
+}
+
+api.knockout(player);
+api.revive(player);
+```
+
+API menyediakan:
+
+- status `KNOCKED` dan managed death,
+- sisa bleedout,
+- immutable `KnockoutSnapshot`,
+- knockout/revive/force-death/give-up,
+- status revive/execution,
+- platform Java/Bedrock,
+- active pose mode.
+
+Service juga dapat diambil langsung:
+
+```java
+CdrKnockoutApi api = Bukkit.getServicesManager().load(CdrKnockoutApi.class);
+```
+
+Dokumentasi developer: `docs/API-EXPANSION.md`.
+
+## Custom Events
+
+Post-transition Bukkit events tersedia:
+
+```text
+CdrKnockoutEvent
+CdrRevivedEvent
+CdrKnockoutDeathEvent
+```
+
+`CdrKnockoutEvent` membedakan KO biasa dan recovery dari persistence. `CdrKnockoutDeathEvent` memberi flag apakah kematian berasal dari managed CdrKnockout death flow.
+
+## PlaceholderAPI
+
+Jika PlaceholderAPI terpasang, expansion `%cdrknockout_*%` diregistrasikan otomatis.
+
+Placeholder tersedia:
+
+```text
+%cdrknockout_version%
+%cdrknockout_state%
+%cdrknockout_is_knocked%
+%cdrknockout_death_in_progress%
+%cdrknockout_time%
+%cdrknockout_time_formatted%
+%cdrknockout_platform%
+%cdrknockout_pose%
+%cdrknockout_being_revived%
+%cdrknockout_reviver%
+%cdrknockout_being_executed%
+%cdrknockout_executor%
+```
+
+`state` dapat menghasilkan `NORMAL`, `KNOCKED`, `REVIVING`, `EXECUTING`, atau `DYING`.
+
+PlaceholderAPI optional. Tanpa PlaceholderAPI, core CdrKnockout tetap berjalan normal.
 
 ## Carry System
 
-Milestone `v0.5.0 — Carry System` **SKIPPED**. Carry/passenger tidak dimasukkan agar pose KO tidak bergantung pada passenger/ArmorStand mechanics dan core tetap stabil.
+Milestone `v0.5.0 — Carry System` **SKIPPED**. Carry/passenger tidak dimasukkan agar pose KO tidak bergantung pada passenger/ArmorStand mechanics.
 
 ## Commands
 
@@ -157,19 +200,20 @@ mvn clean package
 Output:
 
 ```text
-target/CdrKnockout-0.6.0.jar
+target/CdrKnockout-0.7.0.jar
 ```
 
-## Crossplay regression v0.6.0
+## Regression utama v0.7.0
 
-1. Java player -> `/cdrko platform` harus mendeteksi `JAVA` jika Geyser/Floodgate hook aktif.
-2. Bedrock player -> `/cdrko platform` harus mendeteksi `BEDROCK`.
-3. KO Java -> pose, movement lock, blindness, ActionBar, title, heartbeat berjalan.
-4. KO Bedrock -> pose SWIMMING diuji; jika visual tidak sesuai, set `bedrock-mode: CROUCH` lalu reload.
-5. Bedrock revive -> dekat <=1 block + Golden Apple + sneak, tanpa klik.
-6. Bedrock execution -> dekat <=1 block + sword + sneak, tanpa klik.
-7. Relog/restart player Bedrock saat KO -> state dan pose dipulihkan.
-8. Bleedout/execution -> AxGraves harus tetap membuat tepat satu grave.
+1. Plugin tanpa PlaceholderAPI harus tetap enable normal.
+2. Plugin dengan PlaceholderAPI harus mendaftarkan `%cdrknockout_*%`.
+3. API service harus tersedia melalui `CdrKnockoutProvider` / ServicesManager.
+4. Lethal KO harus memicu tepat satu `CdrKnockoutEvent`.
+5. Admin/API KO juga harus memicu event melalui transition bridge.
+6. Revive harus memicu tepat satu `CdrRevivedEvent`.
+7. Bleedout/execution/giveup harus memicu `CdrKnockoutDeathEvent` dan tetap menghasilkan satu grave AxGraves.
+8. Reload tidak boleh menggandakan transition event untuk player yang sudah KNOCKED.
+9. Java/Bedrock flow v0.6.0 harus tetap bekerja.
 
 ## License
 
