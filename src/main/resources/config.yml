@@ -1,6 +1,6 @@
-# CdrKnockout v0.7.0
+# CdrKnockout v0.8.0
 # Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death
-# + AxGraves + Stability + Execution + Java/Bedrock + Public API + PlaceholderAPI
+# + AxGraves + Stability + Execution + Java/Bedrock + API + Gameplay Expansion
 
 debug: false
 
@@ -8,14 +8,12 @@ knockout:
   enabled: true
   duration-seconds: 60
   minimum-health: 1.0
-
   respect-totem-of-undying: true
 
   ignored-gamemodes:
     - CREATIVE
     - SPECTATOR
 
-  # VOID tidak di-ignore supaya environmental/downed damage engine dapat memprosesnya.
   ignored-damage-causes:
     - KILL
 
@@ -25,8 +23,6 @@ knockout:
 
   pose:
     enabled: true
-    # v0.6.0: mode pose per platform diatur di compatibility.client.pose.*
-    # Key ini dipertahankan hanya untuk kompatibilitas config lama.
     mode: SWIMMING
 
   movement:
@@ -63,6 +59,8 @@ knockout:
         - reply
         - helpop
         - giveup
+        - selfrevive
+        - distress
         - cdrko
         - cdrknockout
         - cko
@@ -78,7 +76,6 @@ knockout:
 
   bleedout:
     enabled: true
-
     warnings:
       enabled: true
       thresholds-seconds: [30, 10, 5]
@@ -99,15 +96,11 @@ knockout:
       volume: 0.8
       pitch: 1.0
 
-    # IGNORE        = damage dibatalkan, timer tidak berubah.
-    # REDUCE_TIMER  = damage dibatalkan, waktu bleedout dipotong.
-    # INSTANT_DEATH = real death melalui PlayerDeathEvent normal.
     downed-damage:
       default-mode: REDUCE_TIMER
       default-reduce-seconds: 4
       display-penalty-actionbar: true
       penalty-actionbar: '&4-%seconds%s &7bleedout &8| &c%time%s left'
-
       cause-overrides:
         VOID:
           mode: INSTANT_DEATH
@@ -148,14 +141,12 @@ revive:
 
   requirements:
     mode: ALL
-
     any-priority:
       - ITEM
       - XP_LEVEL
       - MONEY
       - AURASKILLS
       - PERMISSION
-
     failure-message-cooldown-ms: 2000
 
     item:
@@ -204,16 +195,11 @@ revive:
       success-target: '&a&lREVIVED'
       cancelled: '&c&lREVIVE INTERRUPTED'
 
-# v0.4.0 Execution System
-# Default: dekat maksimal 1 block + jongkok + pegang sword selama 3 detik.
-# Tidak membutuhkan klik kiri/kanan.
 execution:
   enabled: true
   max-distance: 1.0
   duration-seconds: 3.0
   require-sneak: true
-
-  # Kosongkan jika semua player boleh execute tanpa permission khusus.
   permission: cdrknockout.execute
 
   item:
@@ -244,7 +230,6 @@ execution:
       success-target: '&4&lEXECUTED'
       cancelled: '&c&lEXECUTION INTERRUPTED'
 
-# v0.3.1 Stability & Safety
 stability:
   persistence:
     enabled: true
@@ -259,23 +244,15 @@ stability:
     reassert-on-world-change: true
 
 compatibility:
-  # v0.6.0 Java & Bedrock Compatibility
   client:
     detection:
-      # Auto-detect BEDROCK lewat Geyser API dan/atau Floodgate API.
-      # Tidak ada hard dependency; pure Java server tetap bisa menjalankan plugin.
       enabled: true
       log-status: true
-
     pose:
-      # SWIMMING = prone/crawl-style pose yang dipakai Java.
-      # CROUCH   = fallback aman bila build Geyser/Bedrock tertentu tidak merender SWIMMING dengan benar.
-      # NONE     = jangan paksa pose, movement lock/effect KO tetap aktif.
       java-mode: SWIMMING
       bedrock-mode: SWIMMING
       unknown-mode: SWIMMING
 
-  # v0.3.0 AxGraves compatibility.
   axgraves:
     enabled: true
     block-graves-while-knocked: true
@@ -283,16 +260,73 @@ compatibility:
     duplicate-window-ticks: 40
     log-diagnostics: false
 
-# v0.7.0 public API and custom post-transition events.
 api:
   events:
     enabled: true
-    # Lightweight state transition safety poller. Damage-caused KO is still observed immediately.
     poll-ticks: 2
 
-# Optional PlaceholderAPI expansion. If PlaceholderAPI is absent, core CdrKnockout is unaffected.
 placeholderapi:
   enabled: true
+
+# v0.8.0 Gameplay Expansion
+gameplay:
+  # Passive self revive: cukup pegang item saat KNOCKED; tidak perlu klik.
+  self-revive:
+    enabled: true
+    auto-start: true
+    duration-seconds: 10.0
+    cooldown-seconds: 120
+    restart-delay-ms: 1500
+    cancel-on-damage: true
+
+    item:
+      material: ENCHANTED_GOLDEN_APPLE
+      amount: 1
+      consume-on-success: true
+
+    result:
+      health: 4.0
+      resistance-seconds: 3
+
+    actionbar:
+      enabled: true
+      bar-segments: 10
+      progress: '&e✚ SELF REVIVING &8| %bar% &f%percent%%%'
+      success: '&a&lSELF REVIVE SUCCESS'
+      cancelled: '&c&lSELF REVIVE INTERRUPTED'
+
+  # Role medic + custom Medical Kit.
+  # Medkit default dapat melewati requirement revive biasa, tetapi tetap memakai channel revive normal.
+  medical:
+    enabled: true
+    require-role-permission: true
+    role-permission: cdrknockout.medic
+
+    medkit:
+      enabled: true
+      material: PAPER
+      name: '&c&lMedical Kit'
+      lore:
+        - '&7Emergency revival equipment.'
+        - '&7Sneak dekat player KNOCKED untuk memakai.'
+      consume-on-success: true
+      bypass-standard-requirements: true
+
+  distress:
+    enabled: true
+    cooldown-seconds: 15
+    radius: 64.0
+    skip-knocked-receivers: true
+    require-receive-permission: false
+    sound:
+      enabled: true
+      name: 'minecraft:block.note_block.pling'
+      volume: 0.8
+      pitch: 1.2
+
+  statistics:
+    enabled: true
+    autosave-ticks: 200
 
 admin-revive:
   health: 6.0
