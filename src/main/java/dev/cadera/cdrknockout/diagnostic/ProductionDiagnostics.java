@@ -1,7 +1,6 @@
 package dev.cadera.cdrknockout.diagnostic;
 
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
-import dev.cadera.cdrknockout.core.KnockoutManager;
 import dev.cadera.cdrknockout.core.KnockoutPersistence;
 import dev.cadera.cdrknockout.gameplay.StatisticsManager;
 import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
@@ -26,7 +25,6 @@ import java.util.logging.Level;
 public final class ProductionDiagnostics {
 
     private final CdrKnockoutPlugin plugin;
-    private final KnockoutManager knockoutManager;
     private final KnockoutPersistence persistence;
     private final StatisticsManager statistics;
     private final AxGravesCompatibility axGraves;
@@ -36,7 +34,6 @@ public final class ProductionDiagnostics {
 
     public ProductionDiagnostics(
             CdrKnockoutPlugin plugin,
-            KnockoutManager knockoutManager,
             KnockoutPersistence persistence,
             StatisticsManager statistics,
             AxGravesCompatibility axGraves,
@@ -45,7 +42,6 @@ public final class ProductionDiagnostics {
             Messages messages
     ) {
         this.plugin = plugin;
-        this.knockoutManager = knockoutManager;
         this.persistence = persistence;
         this.statistics = statistics;
         this.axGraves = axGraves;
@@ -80,11 +76,6 @@ public final class ProductionDiagnostics {
         checks.add(checkDataFolder());
         validateConfiguration(checks);
 
-        checks.add(ok(
-                "Knockout runtime",
-                knockoutManager.activeSessionCount() + " active, "
-                        + knockoutManager.deathInProgressCount() + " managed death(s)"
-        ));
         checks.add(ok(
                 "Persistence",
                 persistence.enabled()
@@ -180,8 +171,7 @@ public final class ProductionDiagnostics {
     private void logReport(String phase) {
         Report report = inspect();
         plugin.getLogger().info("Production diagnostics (" + phase + "): " + report.overall()
-                + " | activeKO=" + knockoutManager.activeSessionCount()
-                + " persisted=" + persistence.storedCount());
+                + " | persisted=" + persistence.storedCount());
         for (Check check : report.checks()) {
             if (check.severity() == Severity.OK) {
                 continue;
