@@ -2,17 +2,9 @@
 
 CdrKnockout adalah sistem knockout/revive modular untuk Paper yang dibuat oleh **CADERA / MENKIESTES**.
 
-Versi saat ini: **v0.8.0 — Gameplay Expansion**
+Versi saat ini: **v1.0.0 — Production Stable**
 
-> Status: alpha / development. Core knockout, passive revive, requirement engine, bleedout/death, AxGraves compatibility, persistence/recovery, execution, Java/Bedrock compatibility, public API, PlaceholderAPI, dan gameplay expansion sudah tersedia.
-
-## Target platform
-
-- Paper 1.21.11
-- Java 21
-- Java Edition
-- Bedrock via Geyser/Floodgate
-- Optional Vault, AuraSkills, AxGraves, PlaceholderAPI
+Target utama: **Paper 1.21.11 + Java 21**, dengan dukungan Java Edition dan Bedrock melalui Geyser/Floodgate.
 
 ## Core flow
 
@@ -27,98 +19,61 @@ lethal damage
   -> AxGraves
 ```
 
-## Passive Revive
+Selama player masih `KNOCKED`, inventory/EXP tidak dipindahkan oleh CdrKnockout dan death event asli belum terjadi.
 
-Default:
+## Fitur utama
 
-```text
-<= 1 block + sneak + GOLDEN_APPLE + tahan 8 detik
-```
+- Lethal-damage interception dan state KNOCKED.
+- Prone/crawl-style pose + movement lock.
+- Passive proximity revive tanpa klik.
+- Requirement engine: item, XP, Vault, AuraSkills, permission; mode ALL/ANY.
+- Bleedout, heartbeat, warning, environmental downed damage, `/giveup`.
+- Execution system tanpa klik.
+- Persistent KO recovery setelah relog/restart.
+- AxGraves compatibility dengan no-grave-on-KO + duplicate-grave guard.
+- Java/Bedrock client detection dan pose fallback.
+- Public API + custom Bukkit events.
+- PlaceholderAPI expansion.
+- Self-revive, medic role, PDC Medical Kit, distress signal, persistent statistics.
 
-Tidak membutuhkan klik. Requirement: ITEM, XP_LEVEL, MONEY, AURASKILLS, PERMISSION dengan mode ALL/ANY.
+## Production hardening v1.0.0
 
-## Execution
+v1.0.0 menambahkan lapisan hardening untuk penggunaan live:
 
-Default:
+- `knockouts.yml` dan `statistics.yml` ditulis menggunakan temporary file + atomic replace bila filesystem mendukungnya.
+- Runtime reload persistence/statistics diperkeras supaya enable/disable tidak meninggalkan state memory yang salah.
+- Command recovery milik CdrKnockout tetap dapat dipakai saat KNOCKED walau server masih memakai config lama.
+- Namespaced command seperti `/cdrknockout:selfrevive` dinormalisasi saat command restriction aktif.
+- Startup/reload production diagnostics.
+- `/cdrko doctor` untuk mengecek Java, Minecraft version, data-folder write access, config enum penting, optional dependency, crossplay hook, PlaceholderAPI, AxGraves, persistence, dan statistics.
+- CI memakai `mvn clean verify` dan memvalidasi isi/version JAR sebelum artifact di-upload.
 
-```text
-Target KNOCKED + executor <= 1 block + sneak + sword + tahan 3 detik
-```
+Dokumentasi acceptance test: `docs/PRODUCTION-STABLE.md`.
 
-## v0.8.0 Gameplay Expansion
-
-### Self Revive
-
-Player KNOCKED dapat melakukan self-revive dengan item khusus. Default `ENCHANTED_GOLDEN_APPLE`, channel 10 detik, cooldown 120 detik, item dikonsumsi saat sukses. Bisa auto-start atau manual lewat `/selfrevive`.
-
-### Medic Role & Medical Kit
-
-Permission medic default:
-
-```text
-cdrknockout.medic
-```
-
-Admin memberi Medical Kit:
-
-```text
-/medkit <player> [amount]
-```
-
-Medical Kit memakai PDC marker sehingga PAPER biasa tidak dianggap medkit. Default medkit dapat melewati requirement revive standar dan memakai passive revive channel yang sama.
-
-### Distress
-
-Player KNOCKED dapat memanggil bantuan:
+## Default revive
 
 ```text
-/distress
+<= 1 block
++ sneak
++ GOLDEN_APPLE di main hand
++ tahan 8 detik
 ```
 
-Radius, cooldown, receiver permission, dan sound configurable.
+Tidak membutuhkan klik kiri/kanan.
 
-### Statistics
-
-Statistik tersimpan di:
+## Default execution
 
 ```text
-plugins/CdrKnockout/statistics.yml
+Target KNOCKED
++ executor <= 1 block
++ sneak
++ sword di main hand
++ tahan 3 detik
 ```
 
-Command:
+## Gameplay expansion
 
-```text
-/kostats [player]
-```
-
-Tracked: knockouts, revives received, knockout deaths, self revives, distress signals, medical kit uses.
-
-Dokumentasi: `docs/GAMEPLAY-EXPANSION.md` dan `docs/GAMEPLAY-EXPANSION-REGRESSION.md`.
-
-## Java & Bedrock
-
-Deteksi client `JAVA / BEDROCK / UNKNOWN` menggunakan Geyser/Floodgate secara optional. Pose per-platform: `SWIMMING`, `CROUCH`, `NONE`.
-
-```text
-/cdrko platform <player>
-/cdrko compat
-```
-
-## Public API & Events
-
-API tersedia lewat Bukkit ServicesManager / `CdrKnockoutProvider`.
-
-Events:
-
-```text
-CdrKnockoutEvent
-CdrRevivedEvent
-CdrKnockoutDeathEvent
-```
-
-## PlaceholderAPI
-
-Expansion `%cdrknockout_*%` optional. Selain state/time/platform/revive/execution, v0.8.0 menambahkan placeholder gameplay/statistik untuk self-revive, distress cooldown, dan stats.
+Self revive default memakai `ENCHANTED_GOLDEN_APPLE`, channel 10 detik dan cooldown 120 detik. Medic menggunakan permission `cdrknockout.medic` dan Medical Kit bertanda PDC. Distress tersedia lewat `/distress`, statistik lewat `/kostats [player]`.
 
 ## Commands
 
@@ -130,6 +85,7 @@ Expansion `%cdrknockout_*%` optional. Selain state/time/platform/revive/executio
 /cdrko status <player>
 /cdrko compat
 /cdrko platform <player>
+/cdrko doctor
 /giveup
 /selfrevive
 /distress
@@ -137,21 +93,50 @@ Expansion `%cdrknockout_*%` optional. Selain state/time/platform/revive/executio
 /medkit <player> [amount]
 ```
 
+`/cdrko doctor` direkomendasikan dijalankan setelah upgrade config/plugin atau perubahan dependency.
+
+## Optional integrations
+
+- Vault + economy provider
+- AuraSkills
+- AxGraves
+- PlaceholderAPI
+- Geyser
+- Floodgate
+
+Semua hook dibuat optional; kegagalan hook tidak boleh mematikan core knockout.
+
+## Public API & Events
+
+API tersedia melalui Bukkit `ServicesManager` atau `CdrKnockoutProvider`.
+
+Events:
+
+```text
+CdrKnockoutEvent
+CdrRevivedEvent
+CdrKnockoutDeathEvent
+```
+
 ## Build
 
 ```bash
-mvn clean package
+mvn clean verify
 ```
 
 Output:
 
 ```text
-target/CdrKnockout-0.8.0.jar
+target/CdrKnockout-1.0.0.jar
 ```
+
+## Deployment note
+
+JAR v1.0.0 adalah release production dari sisi source/build. Sebelum mengganti plugin di server live, jalankan regression checklist pada staging/maintenance window, terutama Java + Bedrock, restart/relog, execution, self-revive, dan real death -> AxGraves.
 
 ## Carry System
 
-Milestone v0.5.0 Carry System sengaja di-skip supaya pose KO tidak bergantung pada passenger/ArmorStand mechanics.
+Milestone v0.5.0 Carry System sengaja di-skip agar pose KO tidak bergantung pada passenger/ArmorStand mechanics.
 
 ## License
 
