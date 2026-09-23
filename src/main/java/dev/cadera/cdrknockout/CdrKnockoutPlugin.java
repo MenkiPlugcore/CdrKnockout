@@ -11,6 +11,7 @@ import dev.cadera.cdrknockout.command.SelfReviveCommand;
 import dev.cadera.cdrknockout.command.StatsCommand;
 import dev.cadera.cdrknockout.core.KnockoutManager;
 import dev.cadera.cdrknockout.core.KnockoutPersistence;
+import dev.cadera.cdrknockout.diagnostic.ProductionDiagnostics;
 import dev.cadera.cdrknockout.execution.ExecutionManager;
 import dev.cadera.cdrknockout.gameplay.DistressManager;
 import dev.cadera.cdrknockout.gameplay.MedicalKitItems;
@@ -44,6 +45,7 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
     private SelfReviveManager selfReviveManager;
     private DistressManager distressManager;
     private MedicalKitItems medicalKitItems;
+    private ProductionDiagnostics productionDiagnostics;
 
     @Override
     public void onEnable() {
@@ -122,16 +124,30 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         );
         placeholderApiIntegration.start();
 
+        productionDiagnostics = new ProductionDiagnostics(
+                this,
+                persistence,
+                statisticsManager,
+                axGravesCompatibility,
+                platformResolver,
+                placeholderApiIntegration,
+                messages
+        );
+
         CdrKnockoutCommand commandHandler = new CdrKnockoutCommand(
                 this,
                 knockoutManager,
                 messages,
                 axGravesCompatibility,
                 platformResolver,
-                poseEngine
+                poseEngine,
+                productionDiagnostics
         );
         registerCommand("cdrko", commandHandler);
-        getCommand("cdrko").setTabCompleter(commandHandler);
+        PluginCommand cdrko = getCommand("cdrko");
+        if (cdrko != null) {
+            cdrko.setTabCompleter(commandHandler);
+        }
 
         registerCommand("giveup", new GiveUpCommand(this, knockoutManager, messages));
         registerCommand("selfrevive", new SelfReviveCommand(selfReviveManager, messages));
@@ -139,6 +155,7 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         registerCommand("kostats", new StatsCommand(statisticsManager, messages));
         registerCommand("medkit", new MedKitCommand(medicalKitItems, messages));
 
+        productionDiagnostics.logStartupReport();
         getLogger().info("CdrKnockout v" + getDescription().getVersion() + " enabled.");
     }
 
@@ -210,6 +227,9 @@ public final class CdrKnockoutPlugin extends JavaPlugin {
         }
         if (placeholderApiIntegration != null) {
             placeholderApiIntegration.reload();
+        }
+        if (productionDiagnostics != null) {
+            productionDiagnostics.logReloadReport();
         }
     }
 
