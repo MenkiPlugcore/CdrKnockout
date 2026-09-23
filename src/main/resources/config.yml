@@ -1,4 +1,4 @@
-# CdrKnockout v1.0.0 — Production Stable
+# CdrKnockout v1.0.1 — Production Stable
 # Paper 1.21.11 + Java 21
 
 config-version: 1
@@ -10,6 +10,10 @@ production:
   warn-unsupported-minecraft-version: true
   startup-diagnostics: true
   log-on-reload: true
+
+  # Runtime license integrity check. LICENSE.txt is mandatory and cannot be disabled by config.
+  # This only controls how often the already-mandatory integrity check runs while the server is online.
+  license-integrity-check-ticks: 100
 
   # Built-in recovery/control commands tetap dapat dipakai saat KNOCKED walau
   # config lama belum memiliki command tersebut di allowed list.
