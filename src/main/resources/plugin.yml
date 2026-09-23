@@ -3,9 +3,9 @@ version: '${project.version}'
 main: dev.cadera.cdrknockout.CdrKnockoutPlugin
 api-version: '1.21'
 author: CADERA
-description: Modular knockout, revive, execution, Java/Bedrock compatibility, persistence, stability, and AxGraves engine for Paper servers.
+description: Modular knockout, revive, execution, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, stability, and AxGraves engine for Paper servers.
 website: https://github.com/MenkiPlugcore/CdrKnockout
-softdepend: [Vault, AuraSkills, AxGraves, Geyser-Spigot, floodgate]
+softdepend: [Vault, AuraSkills, AxGraves, Geyser-Spigot, floodgate, PlaceholderAPI]
 
 commands:
   cdrko:

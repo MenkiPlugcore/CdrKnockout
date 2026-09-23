@@ -2,6 +2,27 @@
 
 Semua perubahan penting CdrKnockout dicatat di file ini.
 
+## [0.7.0] - 2026-09-23
+
+### Added
+- Public `CdrKnockoutApi` service yang diregistrasikan melalui Bukkit `ServicesManager`.
+- `CdrKnockoutProvider` helper untuk consumer plugin.
+- Immutable `KnockoutSnapshot` untuk membaca state tanpa mengekspos internal session object.
+- API methods untuk status KO, remaining time, knockout, revive, force death, give up, revive/execution state, client platform, dan active pose mode.
+- Custom Bukkit post-transition events: `CdrKnockoutEvent`, `CdrRevivedEvent`, `CdrKnockoutDeathEvent`.
+- Recovery flag pada `CdrKnockoutEvent` untuk membedakan persistent relog/restart recovery.
+- Managed-death flag pada `CdrKnockoutDeathEvent`.
+- Optional PlaceholderAPI expansion `%cdrknockout_*%`.
+- Placeholder state/time/platform/pose/revive/execution/version.
+- Config `api.events.*` dan `placeholderapi.enabled`.
+- Developer documentation `docs/API-EXPANSION.md`.
+
+### Compatibility
+- PlaceholderAPI tetap optional melalui softdepend dan lazy reflective expansion loading.
+- Server tanpa PlaceholderAPI tidak memuat class expansion dan core tetap dapat enable.
+- API transition bridge tidak mengubah core death/revive behaviour atau AxGraves flow.
+- Reload mempertahankan tracked KO transition state agar tidak menggandakan custom event.
+
 ## [0.6.0] - 2026-09-23
 
 ### Added
