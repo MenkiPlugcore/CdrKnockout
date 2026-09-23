@@ -33,8 +33,19 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
 
 import java.util.Locale;
+import java.util.Set;
 
 public final class KnockoutListener implements Listener {
+
+    private static final Set<String> BUILT_IN_KNOCKED_COMMANDS = Set.of(
+            "giveup",
+            "selfrevive",
+            "distress",
+            "kostats",
+            "cdrko",
+            "cdrknockout",
+            "cko"
+    );
 
     private final CdrKnockoutPlugin plugin;
     private final KnockoutManager manager;
@@ -256,6 +267,16 @@ public final class KnockoutListener implements Listener {
             return;
         }
         String label = raw.split("\\s+", 2)[0].toLowerCase(Locale.ROOT);
+        int namespaceSeparator = label.indexOf(':');
+        if (namespaceSeparator >= 0 && namespaceSeparator + 1 < label.length()) {
+            label = label.substring(namespaceSeparator + 1);
+        }
+
+        if (plugin.getConfig().getBoolean("production.always-allow-knocked-plugin-commands", true)
+                && BUILT_IN_KNOCKED_COMMANDS.contains(label)) {
+            return;
+        }
+
         if (!manager.isCommandAllowed(label)) {
             event.setCancelled(true);
             player.sendMessage(messages.format("command-blocked"));
