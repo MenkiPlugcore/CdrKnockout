@@ -1,6 +1,6 @@
-# CdrKnockout v0.6.0
+# CdrKnockout v0.7.0
 # Core Knockout + Passive Revive + Requirement Engine + Bleedout/Death
-# + AxGraves Compatibility + Stability & Safety + Execution + Java/Bedrock Compatibility
+# + AxGraves + Stability + Execution + Java/Bedrock + Public API + PlaceholderAPI
 
 debug: false
 
@@ -282,6 +282,17 @@ compatibility:
     prevent-duplicate-managed-graves: true
     duplicate-window-ticks: 40
     log-diagnostics: false
+
+# v0.7.0 public API and custom post-transition events.
+api:
+  events:
+    enabled: true
+    # Lightweight state transition safety poller. Damage-caused KO is still observed immediately.
+    poll-ticks: 2
+
+# Optional PlaceholderAPI expansion. If PlaceholderAPI is absent, core CdrKnockout is unaffected.
+placeholderapi:
+  enabled: true
 
 admin-revive:
   health: 6.0
