@@ -3,6 +3,9 @@ package dev.cadera.cdrknockout.command;
 import dev.cadera.cdrknockout.CdrKnockoutPlugin;
 import dev.cadera.cdrknockout.core.KnockoutManager;
 import dev.cadera.cdrknockout.integration.AxGravesCompatibility;
+import dev.cadera.cdrknockout.platform.ClientPlatform;
+import dev.cadera.cdrknockout.platform.ClientPlatformResolver;
+import dev.cadera.cdrknockout.platform.PoseEngine;
 import dev.cadera.cdrknockout.util.Messages;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -20,15 +23,19 @@ import java.util.Locale;
 
 public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBCOMMANDS = List.of("reload", "knockout", "revive", "kill", "status", "compat");
+    private static final List<String> SUBCOMMANDS = List.of(
+            "reload", "knockout", "revive", "kill", "status", "compat", "platform"
+    );
 
     private final CdrKnockoutPlugin plugin;
     private final KnockoutManager manager;
     private final Messages messages;
     private final AxGravesCompatibility axGravesCompatibility;
+    private final ClientPlatformResolver platformResolver;
+    private final PoseEngine poseEngine;
 
     public CdrKnockoutCommand(CdrKnockoutPlugin plugin, KnockoutManager manager, Messages messages) {
-        this(plugin, manager, messages, null);
+        this(plugin, manager, messages, null, null, null);
     }
 
     public CdrKnockoutCommand(
@@ -37,10 +44,23 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
             Messages messages,
             AxGravesCompatibility axGravesCompatibility
     ) {
+        this(plugin, manager, messages, axGravesCompatibility, null, null);
+    }
+
+    public CdrKnockoutCommand(
+            CdrKnockoutPlugin plugin,
+            KnockoutManager manager,
+            Messages messages,
+            AxGravesCompatibility axGravesCompatibility,
+            ClientPlatformResolver platformResolver,
+            PoseEngine poseEngine
+    ) {
         this.plugin = plugin;
         this.manager = manager;
         this.messages = messages;
         this.axGravesCompatibility = axGravesCompatibility;
+        this.platformResolver = platformResolver;
+        this.poseEngine = poseEngine;
     }
 
     @Override
@@ -97,6 +117,7 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
             case "revive" -> handleRevive(sender, target);
             case "kill" -> handleKill(sender, target);
             case "status" -> handleStatus(sender, target);
+            case "platform" -> handlePlatform(sender, target);
             default -> sender.sendMessage(messages.format("usage"));
         }
         return true;
@@ -136,26 +157,70 @@ public final class CdrKnockoutCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(messages.format("status-knocked", "%player%", target.getName(), "%time%", time));
     }
 
-    private void handleCompatibility(CommandSender sender) {
+    private void handlePlatform(CommandSender sender, Player target) {
         sender.sendMessage(messages.color("&8&m----------------------------------------"));
-        sender.sendMessage(messages.color("&c&lCdrKnockout &7- &fAxGraves Compatibility"));
+        sender.sendMessage(messages.color("&c&lCdrKnockout &7- &fClient Platform"));
+        sender.sendMessage(messages.color("&7Player: &f" + target.getName()));
 
-        if (axGravesCompatibility == null) {
-            sender.sendMessage(messages.color("&7Status: &eNOT INITIALIZED"));
+        if (platformResolver == null) {
+            sender.sendMessage(messages.color("&7Platform: &eUNKNOWN"));
+            sender.sendMessage(messages.color("&7Detector: &eNOT INITIALIZED"));
             sender.sendMessage(messages.color("&8&m----------------------------------------"));
             return;
         }
 
-        String status = axGravesCompatibility.statusName();
-        String statusColor = status.equals("ACTIVE") ? "&a" : status.equals("NOT_INSTALLED") ? "&7" : "&e";
-        sender.sendMessage(messages.color("&7Status: " + statusColor + status));
-        sender.sendMessage(messages.color("&7AxGraves version: &f" + axGravesCompatibility.detectedVersion()));
-        sender.sendMessage(messages.color("&7Pre-spawn hook: " + (axGravesCompatibility.isHookActive() ? "&aACTIVE" : "&eINACTIVE")));
-        sender.sendMessage(messages.color("&7Blocked KO graves: &f" + axGravesCompatibility.blockedKnockedGraves()));
-        sender.sendMessage(messages.color("&7Blocked duplicate graves: &f" + axGravesCompatibility.blockedDuplicateGraves()));
-        if (!axGravesCompatibility.hookFailure().isBlank()) {
-            sender.sendMessage(messages.color("&7Hook detail: &c" + axGravesCompatibility.hookFailure()));
+        ClientPlatform platform = platformResolver.resolve(target);
+        String color = switch (platform) {
+            case JAVA -> "&a";
+            case BEDROCK -> "&b";
+            case UNKNOWN -> "&e";
+        };
+        sender.sendMessage(messages.color("&7Platform: " + color + platform.name()));
+        sender.sendMessage(messages.color("&7Detector: &f" + platformResolver.statusName()));
+        sender.sendMessage(messages.color("&7Geyser: &f" + platformResolver.geyserVersion()
+                + (platformResolver.isGeyserHookActive() ? " &a[ACTIVE]" : " &7[INACTIVE]")));
+        sender.sendMessage(messages.color("&7Floodgate: &f" + platformResolver.floodgateVersion()
+                + (platformResolver.isFloodgateHookActive() ? " &a[ACTIVE]" : " &7[INACTIVE]")));
+        if (poseEngine != null) {
+            sender.sendMessage(messages.color("&7KO pose mode: &f" + poseEngine.modeName(target)));
         }
+        sender.sendMessage(messages.color("&8&m----------------------------------------"));
+    }
+
+    private void handleCompatibility(CommandSender sender) {
+        sender.sendMessage(messages.color("&8&m----------------------------------------"));
+        sender.sendMessage(messages.color("&c&lCdrKnockout &7- &fCompatibility"));
+
+        if (axGravesCompatibility == null) {
+            sender.sendMessage(messages.color("&7AxGraves: &eNOT INITIALIZED"));
+        } else {
+            String status = axGravesCompatibility.statusName();
+            String statusColor = status.equals("ACTIVE") ? "&a" : status.equals("NOT_INSTALLED") ? "&7" : "&e";
+            sender.sendMessage(messages.color("&7AxGraves: " + statusColor + status));
+            sender.sendMessage(messages.color("&7AxGraves version: &f" + axGravesCompatibility.detectedVersion()));
+            sender.sendMessage(messages.color("&7Pre-spawn hook: "
+                    + (axGravesCompatibility.isHookActive() ? "&aACTIVE" : "&eINACTIVE")));
+            sender.sendMessage(messages.color("&7Blocked KO graves: &f" + axGravesCompatibility.blockedKnockedGraves()));
+            sender.sendMessage(messages.color("&7Blocked duplicate graves: &f" + axGravesCompatibility.blockedDuplicateGraves()));
+            if (!axGravesCompatibility.hookFailure().isBlank()) {
+                sender.sendMessage(messages.color("&7AxGraves hook detail: &c" + axGravesCompatibility.hookFailure()));
+            }
+        }
+
+        if (platformResolver == null) {
+            sender.sendMessage(messages.color("&7Client detector: &eNOT INITIALIZED"));
+        } else {
+            sender.sendMessage(messages.color("&7Client detector: &f" + platformResolver.statusName()));
+            sender.sendMessage(messages.color("&7Geyser version: &f" + platformResolver.geyserVersion()));
+            sender.sendMessage(messages.color("&7Floodgate version: &f" + platformResolver.floodgateVersion()));
+            if (!platformResolver.geyserFailure().isBlank()) {
+                sender.sendMessage(messages.color("&7Geyser hook detail: &c" + platformResolver.geyserFailure()));
+            }
+            if (!platformResolver.floodgateFailure().isBlank()) {
+                sender.sendMessage(messages.color("&7Floodgate hook detail: &c" + platformResolver.floodgateFailure()));
+            }
+        }
+
         sender.sendMessage(messages.color("&8&m----------------------------------------"));
     }
 
