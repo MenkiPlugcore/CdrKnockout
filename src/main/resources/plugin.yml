@@ -3,14 +3,14 @@ version: '${project.version}'
 main: dev.cadera.cdrknockout.CdrKnockoutPlugin
 api-version: '1.21'
 author: CADERA
-description: Modular knockout, revive, execution, persistence, stability, and AxGraves compatibility engine for Paper servers.
+description: Modular knockout, revive, execution, Java/Bedrock compatibility, persistence, stability, and AxGraves engine for Paper servers.
 website: https://github.com/MenkiPlugcore/CdrKnockout
-softdepend: [Vault, AuraSkills, AxGraves]
+softdepend: [Vault, AuraSkills, AxGraves, Geyser-Spigot, floodgate]
 
 commands:
   cdrko:
     description: CdrKnockout administration command.
-    usage: /cdrko <reload|knockout|revive|kill|status|compat> [player]
+    usage: /cdrko <reload|knockout|revive|kill|status|compat|platform> [player]
     aliases: [cdrknockout, cko]
     permission: cdrknockout.command
   giveup:
@@ -32,7 +32,10 @@ permissions:
   cdrknockout.command.status:
     default: op
   cdrknockout.command.compat:
-    description: Show AxGraves compatibility diagnostics.
+    description: Show AxGraves, Geyser, and Floodgate compatibility diagnostics.
+    default: op
+  cdrknockout.command.platform:
+    description: Show detected client platform and active knockout pose mode for a player.
     default: op
   cdrknockout.bypass:
     description: Prevent automatic lethal damage from entering knockout.
