@@ -3,9 +3,9 @@
 
   <groupId>store.cadera</groupId>
   <artifactId>CdrKnockout</artifactId>
-  <version>0.6.0</version>
+  <version>0.7.0</version>
   <name>CdrKnockout</name>
-  <description>Knockout, passive revive, execution, Java/Bedrock compatibility, persistence, stability, and AxGraves compatibility for Paper servers by CADERA.</description>
+  <description>Knockout, revive, execution, public API, PlaceholderAPI expansion, Java/Bedrock compatibility, persistence, and AxGraves compatibility for Paper servers by CADERA.</description>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
@@ -17,6 +17,10 @@
       <id>papermc</id>
       <url>https://repo.papermc.io/repository/maven-public/</url>
     </repository>
+    <repository>
+      <id>placeholderapi</id>
+      <url>https://repo.extendedclip.com/releases/</url>
+    </repository>
   </repositories>
 
   <dependencies>
@@ -24,6 +28,12 @@
       <groupId>io.papermc.paper</groupId>
       <artifactId>paper-api</artifactId>
       <version>1.21.11-R0.1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>me.clip</groupId>
+      <artifactId>placeholderapi</artifactId>
+      <version>2.11.6</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
