@@ -27,11 +27,11 @@ Carry/drop sengaja tidak dilanjutkan agar pose KO tetap sederhana, stabil, dan t
 ## ✅ v0.6.0 — Java & Bedrock Compatibility
 Reflective Geyser/Floodgate client detection, platform-aware pose mode `SWIMMING/CROUCH/NONE`, persisted pose state, softdepend Geyser/Floodgate, `/cdrko platform`, dan compatibility diagnostics. Passive revive/execution tetap no-click sehingga aman untuk Java maupun Bedrock.
 
-## v0.7.0 — API & Expansion
-Public API, custom events, PlaceholderAPI.
+## ✅ v0.7.0 — API & Expansion
+Public Bukkit ServicesManager API, immutable knockout snapshot, transition events (`CdrKnockoutEvent`, `CdrRevivedEvent`, `CdrKnockoutDeathEvent`), optional PlaceholderAPI expansion, state/time/platform/pose/revive/execution placeholders, dan developer documentation.
 
 ## v0.8.0 — Gameplay Expansion
 Self revive, medical roles/items, revive modifiers, distress system, statistics.
 
 ## v1.0.0 — Production Stable
-Production release setelah regression test Java/Bedrock, PvP/PvE, environmental deaths, restart/relog, multi-player concurrency, dan AxGraves.
+Production release setelah regression test Java/Bedrock, PvP/PvE, environmental deaths, restart/relog, multi-player concurrency, API/event integrations, PlaceholderAPI, dan AxGraves.
