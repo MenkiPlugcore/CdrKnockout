@@ -3,9 +3,9 @@
 
   <groupId>store.cadera</groupId>
   <artifactId>CdrKnockout</artifactId>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <name>CdrKnockout</name>
-  <description>Production-stable knockout, forced prone pose, revive, execution, gameplay expansion, diagnostics, runtime license integrity, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, and AxGraves compatibility for Paper servers by CADERA.</description>
+  <description>Production-stable knockout, Java self-view prone pose, revive, execution, gameplay expansion, diagnostics, runtime license integrity, public API, PlaceholderAPI, Java/Bedrock compatibility, persistence, and AxGraves compatibility for Paper servers by CADERA.</description>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
